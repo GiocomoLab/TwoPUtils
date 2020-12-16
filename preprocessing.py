@@ -144,22 +144,22 @@ def _VR_align_to_2P(vr_dataframe, scan_info, n_imaging_planes=1,run_ttl_check=Fa
 
     # integrate, interpolate and then take difference, to make sure data is not lost
     cumsum_interp_cols = column_filter(('dz', 'lick', 'reward', 'tstart', 'teleport', 'rzone'))
-    f_cumsum = sp.interpolate.interp1d(ttl_times, np.cumsum(vr_dataframe[cumsum_list]._values, axis=0), axis=0,
+    f_cumsum = sp.interpolate.interp1d(ttl_times, np.cumsum(vr_dataframe[cumsum_interp_cols]._values, axis=0), axis=0,
                                        kind='slinear')
-    ca_cumsum = np.round(np.insert(f_cumsum(ca_time[mask]), 0, [0, 0, 0, 0, 0, 0], axis=0))
+    ca_cumsum = np.round(np.insert(f_cumsum(ca_time[mask]), 0, [0]*len(cumsum_interp_cols), axis=0))
     if ca_cumsum[-1, -2] < ca_cumsum[-1, -3]:
         ca_cumsum[-1, -2] += 1
 
-    ca_df.loc[mask, cumsum_list] = np.diff(ca_cumsum, axis=0)
-    ca_df.loc[~mask, cumsum_list] = 0.
+    ca_df.loc[mask, cumsum_interp_cols] = np.diff(ca_cumsum, axis=0)
+    ca_df.loc[~mask, cumsum_interp_cols] = 0.
 
     # fill na here
     ca_df.loc[np.isnan(ca_df['teleport']._values), 'teleport'] = 0
     ca_df.loc[np.isnan(ca_df['tstart']._values), 'tstart'] = 0
 
     # smooth instantaneous speed
-    k = Gaussian1DKernel(5)
-    cum_dz = convolve(np.cumsum(ca_df['dz']._values), k, boundary='extend')
+
+    cum_dz = sp.ndimage.filters.gaussian_filter1d(np.cumsum(ca_df['dz']._values), 5)
     ca_df['dz'] = np.ediff1d(cum_dz, to_end=0)
 
     ca_df['speed'].interpolate(method='linear', inplace=True)
@@ -168,9 +168,9 @@ def _VR_align_to_2P(vr_dataframe, scan_info, n_imaging_planes=1,run_ttl_check=Fa
 
     # calculate and smooth lick rate
     ca_df['lick rate'] = np.array(np.divide(ca_df['lick'], np.ediff1d(ca_df['time'], to_begin=1. / fr)))
-    ca_df['lick rate'] = convolve(ca_df['lick rate']._values, k, boundary='extend')
+    ca_df['lick rate'] = sp.ndimage.filters.gaussian_filter1d(ca_df['lick rate']._values, 5)
 
-    # replace nans with 0s
-    ca_df[['reward', 'tstart', 'teleport', 'lick', 'towerJitter', 'wallJitter', 'bckgndJitter']].fillna(value=0,
-                                                                                                        inplace=True)
+    # # replace nans with 0s
+    # ca_df[['reward', 'tstart', 'teleport', 'lick', 'towerJitter', 'wallJitter', 'bckgndJitter']].fillna(value=0,
+    #                                                                                                     inplace=True)
     return ca_df

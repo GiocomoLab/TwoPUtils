@@ -1,7 +1,8 @@
-class ImagingSession:
+
+class Session:
     """Base class for any 2P session"""
 
-    def __init__(self, mouse, date, session_number, scanner="NLW"):
+    def __init__(self, mouse: str, date: str, scene: str,session_number: str,scan_number: int, scanner="NLW"):
         """
 
         :type mouse: object
@@ -10,6 +11,8 @@ class ImagingSession:
         self.date = date
         self.session = session_number
         self.scanner = scanner
+        self.scene = scene
+        self.scan_number = scan_number
 
         # check for pickled instance of ImagingSession class
         self._check_for_pickled_session()
@@ -42,14 +45,20 @@ class ImagingSession:
         # look for pickled session
         raise NotImplementedError
 
-    def _check_for_VR_data(self):
+    def _check_for_VR_data(self,**kwargs):
+
         # look for VR Data
         raise NotImplementedError
 
-    def _check_for_2P_data(self):
+    def _check_for_2P_data(self,**kwargs):
         # look for raw 2P data
 
+        # set paths
+
+
         # if scanner=="NeuroLabware"
+        if self.scanner=="NLW":
+            # find paths to sbx file and mat file
 
         # elif scanner=="ThorLabs"
 
@@ -78,3 +87,15 @@ class ImagingSession:
         # run suite2p
 
         raise NotImplementedError
+
+
+    def align_VR_to_2P(self):
+
+        # load sqlite file as pandas array
+        df = pd.
+        if self.scan_number is not None:
+            # feed pandas array and scene name to alignment function
+            self.vr_data = preprocessing.align_VR_2P(vr_dataframe,self.scene)
+        else:
+            self.vr_data =
+
