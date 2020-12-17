@@ -2,11 +2,13 @@
 class Session:
     """Base class for any 2P session"""
 
-    def __init__(self, mouse: str, date: str, scene: str,session_number: str,scan_number: int, scanner="NLW"):
+    def __init__(self, basedir: str, mouse: str, date: str, scene: str,session_number: str,scan_number: int,
+                 scanner="NLW",VR_only=False):
         """
 
         :type mouse: object
         """
+        self.basedir = str
         self.mouse = mouse
         self.date = date
         self.session = session_number
@@ -20,14 +22,15 @@ class Session:
         # check for VR data
         self._check_for_VR_data()
 
-        # check for suite 2P data
-        self._check_for_suite2P_data()
+        if not VR_only:
+            # check for suite 2P data
+            self._check_for_suite2P_data()
 
-        # check for other sessions that 2P data is aligned to
-        self._check_for_aligned_suite2p_sessions()
+            # check for other sessions that 2P data is aligned to
+            self._check_for_aligned_suite2p_sessions()
 
-        # check for aligned VR data
-        self._check_for_aligned_VRData()
+            # check for aligned VR data
+            self._check_for_aligned_VRData()
 
         # print available fields
         self.print_session_info()
@@ -59,12 +62,24 @@ class Session:
         # if scanner=="NeuroLabware"
         if self.scanner=="NLW":
             # find paths to sbx file and mat file
+            matpath = os.path.join(self.basedir,self.mouse,self.date,
+                                   self.scene,"%s_%03d_%03d.mat" %(self.scene,self.session,self.scan_number))
+            if os.path.exists(matpath):
+                self.sbxmat_file = matpath
+            else:
+                warnings.warn("Could not find sbxmat file at %s" % matpath)
+                self.sbxmat_file = None
 
-        # elif scanner=="ThorLabs"
 
-        # elif scanner=="Bruker"
+            self.sbxmat_file =
 
-        raise NotImplementedError
+        elif self.scanner=="ThorLabs":
+            raise NotImplementedError
+
+        elif self.scanner=="Bruker":
+            raise NotImplementedError
+
+
 
     def _check_for_suite2P_data(self):
         # look for suite2p results

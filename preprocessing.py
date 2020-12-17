@@ -1,6 +1,7 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 import scipy as sp
+
 
 def align_VR_2P(path_to_file):
 
@@ -170,7 +171,6 @@ def _VR_align_to_2P(vr_dataframe, scan_info, n_imaging_planes=1,run_ttl_check=Fa
     ca_df['lick rate'] = np.array(np.divide(ca_df['lick'], np.ediff1d(ca_df['time'], to_begin=1. / fr)))
     ca_df['lick rate'] = sp.ndimage.filters.gaussian_filter1d(ca_df['lick rate']._values, 5)
 
-    # # replace nans with 0s
-    # ca_df[['reward', 'tstart', 'teleport', 'lick', 'towerJitter', 'wallJitter', 'bckgndJitter']].fillna(value=0,
-    #                                                                                                     inplace=True)
+    # replace nans with 0s
+    ca_df.fillna(value=0, inplace=True)
     return ca_df
