@@ -1,3 +1,8 @@
+import os
+import warnings
+
+import pandas as pd
+
 
 class Session:
     """Base class for any 2P session"""
