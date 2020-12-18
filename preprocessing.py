@@ -1,3 +1,5 @@
+import sqlite3 as sql
+
 import numpy as np
 import pandas as pd
 import scipy as sp
@@ -9,16 +11,16 @@ def align_VR_2P(path_to_file):
     pass
 
 
-def load_sqlite(sqllite_filename: str, fix_teleports=True):
+def load_sqlite(sqlite_filename: str, fix_teleports=True):
     """
 
-    :param sqllite_filename:
+    :param sqlite_filename:
     :param fix_teleports:
     :return:
     """
 
     # connect to sqlite file
-    sess_conn = sql.connect(filename)
+    sess_conn = sql.connect(sqlite_filename)
 
     # load all columns
     df = pd.read_sql('''SELECT * FROM data''',sess_conn)
@@ -67,12 +69,12 @@ def _ttl_check(ttl_times):
     due to unexpected grounding of the signal. This is only a problem for a small number
     of sessions in Feb-Mar of 2019
 
-    :param scan_info:
+    :param ttl_times:
     :return:
     """
 
 
-    dt_ttl = np.diff(np.insert(orig_ttl_times, 0, 0))  # insert zero at beginning and calculate delta ttl time
+    dt_ttl = np.diff(np.insert(ttl_times, 0, 0))  # insert zero at beginning and calculate delta ttl time
     tmp = np.zeros(dt_ttl.shape)
     tmp[dt_ttl < .005] = 1  # find ttls faster than 200 Hz (unrealistically fast - probably a ttl which bounced to ground)
     # ensured outside of this script that this finds the true start ttl on every scan
@@ -90,7 +92,7 @@ def _VR_align_to_2P(vr_dataframe, scan_info, n_imaging_planes=1,run_ttl_check=Fa
     :param n_imaging_planes: 
     :param n_lines: 
     :return: 
-    """"
+    """
 
 
 
@@ -110,10 +112,10 @@ def _VR_align_to_2P(vr_dataframe, scan_info, n_imaging_planes=1,run_ttl_check=Fa
     numVRFrames = frames.shape[0]
 
     # create empty pandas dataframe to store calcium aligned data
-    ca_df = pd.DataFrame(columns=vr_dataframe.columns, index=np.arange(info['max_idx']))
-    ca_time = np.arange(0, 1 / fr * info['max_idx'], 1 / fr)  # time on this even grid
+    ca_df = pd.DataFrame(columns=vr_dataframe.columns, index=np.arange(scan_info['max_idx']))
+    ca_time = np.arange(0, 1 / fr * scan_info['max_idx'], 1 / fr)  # time on this even grid
 
-    if (ca_time.shape[0] - ca_df.shape[0]) == 1:  # occaionally a 1 frame correction due to
+    if (ca_time.shape[0] - ca_df.shape[0]) == 1:  # occasionally a 1 frame correction due to
         # scan stopping mid frame
         print('one frame correction')
         ca_time = ca_time[:-1]
