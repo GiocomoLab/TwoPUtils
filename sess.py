@@ -1,10 +1,36 @@
 import os
-import pickle
 import warnings
 from abc import ABC
 
+import dill
+
 from . import preprocessing as pp
 
+
+def save_session(obj,output_basedir):
+    """
+    Save an instance of a Session or SessionInfo
+    :param obj:
+    :param output_basedir:
+    :return:
+    """
+
+    assert isinstance(obj,SessionInfo) | isinstance(obj,Session), "obj must be a Session or SessionInfo class instance"
+
+    # check that output_basedir exists
+    assert os.path.exists(output_basedir), "output_basedir does not exist"
+    # check that mouse, date, scene, and session exist and are not None
+    for attr in ("mouse", "date","scene", "session"):
+        assert hasattr(obj,attr), "object missing %s attribute" % attr
+        if getattr(obj,attr) is None:
+            raise NameError("Will not save session if %s is NoneType" % attr)
+
+    # save pickled instance of class
+    pkldir = os.path.join(output_basedir, obj.mouse,obj.date)
+    pklfile = os.path.join(pkldir, "%s_%d.pkl" % (obj.scene, obj.session))
+    os.makedirs(pkldir, exist_ok=True)
+    with open(pklfile, 'wb') as f:
+        dill.dump(obj, f)
 
 class SessionInfo:
     """Base class for any 2P session"""
@@ -38,9 +64,15 @@ class SessionInfo:
         self.vr_filename = None
         self.s2p_path = None
         self.n_planes = 1
+        self.prompt_for_keys = True
 
         self.__dict__.update(kwargs)
-        self._check_minimal_keys()
+        if self.checkkeys:
+            self._check_minimal_keys()
+        else:
+            # check that provided keys are the right type
+            pass
+
 
         # check for VR data
         self._check_for_VR_data()
@@ -135,7 +167,7 @@ class SessionInfo:
             if not attr.startswith('__') and not callable(getattr(self, attr)):
                 print(attr, ":", getattr(self, attr))
 
-    def _check_for_VR_data(self, **kwargs):
+    def _check_for_VR_data(self):
 
         # look for VR Data
         if self.vr_filename is None:
@@ -215,7 +247,7 @@ class Session(SessionInfo, ABC):
             pklfile = self._check_for_pickled_session()
 
         with open(pklfile, 'rb') as f:
-            pklsess = pickle.load(f)
+            pklsess = dill.load(f)
 
             for attr in dir(pklsess):
                 if not attr.startswith('__') and not callable(getattr(pklsess, attr)):
@@ -263,11 +295,4 @@ class Session(SessionInfo, ABC):
 
         # setting suite2p path to be default
 
-    def save(self, output_basedir):
-        # save pickled instance of class
-        pkldir = os.path.join(output_basedir, self.mouse,
-                              self.date)
-        pklfile = os.path.join(pkldir, "%s_%d.pkl" % (self.scene, self.session))
-        os.makedirs(pkldir, exist_ok=True)
-        with open(pklfile, 'wb') as f:
-            pickle.dump(self, f)
+
