@@ -1,10 +1,11 @@
 import os
+
+import h5py
 import numpy as np
 import scipy.io as spio
-import h5py
 
 
-def loadmat(filename):
+def loadsbxmat(filename): # replace with s2p_preprocessing definition to deal with FOV repeats
     '''
     this function should be called instead of direct spio.loadmat
     as it cures the problem of not properly recovering python dictionaries
@@ -15,13 +16,13 @@ def loadmat(filename):
     info = _check_keys(data)['info']
     # Defining number of channels/size factor
     if info['channels'] == 1:
-        info['nChan'] = 2;
+        info['nChan'] = 2
         factor = 1
     elif info['channels'] == 2:
-        info['nChan'] = 1;
+        info['nChan'] = 1
         factor = 2
     elif info['channels'] == 3:
-        info['nChan'] = 1;
+        info['nChan'] = 1
         factor = 2
 
     if info['scanmode'] == 0:
