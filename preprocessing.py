@@ -5,12 +5,6 @@ import pandas as pd
 import scipy as sp
 
 
-def align_VR_2P(path_to_file):
-
-
-    pass
-
-
 def load_sqlite(sqlite_filename: str, fix_teleports=True):
     """
 
@@ -84,7 +78,7 @@ def _ttl_check(ttl_times):
     return mask==0 # original ttl's up to a 1 VR frame error (shouldn't be a meaningful issue for calcium but
                    # but it is an issue for voltage imaging
 
-def vr_align_to_2P(vr_dataframe, scan_info, n_imaging_planes=1,run_ttl_check=False):
+def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False):
     """
     place holder
     :param vr_dframe: 

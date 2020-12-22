@@ -7,7 +7,8 @@ import dill
 import numpy as np
 
 from . import preprocessing as pp
-from . import utils
+from . import sbx_utils
+from . import spatial_analyses
 
 
 def save_session(obj, output_basedir):
@@ -282,25 +283,20 @@ class Session(SessionInfo, ABC):
 
         """
 
-
         # vr data
         self.vr_data = None
 
         # neural data
         self.scan_info = None
         self.n_planes = None
-        # green pmt
-        self.F_pmt0 = None
-        self.Fneu_pmt0 = None
-        self.DFF_pmt0 = None
-        self.S_pmt0 = None
-        # red pmt
-        self.F_pmt1 = None
-        self.Fneu_pmt1 = None
-        self.DFF_pmt1 = None
-        self.S_pmt1 = None
+        self.timeseries = {}
+        self.trial_matrices = {}
+        self.iscell = None
+        self.s2p_ops = None
+        self.s2p_stats = None
 
-        #self.__dict__.update(kwargs)  # update keys based on inputs - might not need this line/called through super inheritance
+        # self.__dict__.update(kwargs)  # update keys based on inputs - might not need this line/called through super
+        # inheritance
         super(Session, self).__init__(**kwargs)
 
         # check for pickled instance of Session class
@@ -334,6 +330,10 @@ class Session(SessionInfo, ABC):
         assert os.path.exists(pklfile), "%s does not exist" % pklfile
         return pklfile
 
+    def load_scan_info(self):
+        if self.scanner == "NLW":
+            self.scan_info = sbx_utils.loadmat(self.scanheader_file)
+
     def align_VR_to_2P(self, overwrite=False):
 
         if self.vr_data is None or overwrite:
@@ -351,33 +351,53 @@ class Session(SessionInfo, ABC):
         else:
             print("VR data already set or overwrite=False")
 
-    def load_suite2p_data(self, n_chan=1, F=True, Fneu=True, S=True, custom_iscell=None):
+    def load_suite2p_data(self, which_ts=('F', 'Fneu', 'S', 'F_chan2', 'Fneu_chan2'), custom_iscell=None):
 
-        pass
+        if self.n_planes > 1:
+            print("multiple planes functionality not added in yet, assuming 1 plane")
+        else:
+            self.s2p_ops = np.load(os.path.join(self.s2p_path, 'plane0', 'ops.npy'), allow_pickle=True).all()
+            self.s2p_stats = np.load(os.path.join(self.s2p_path, 'plane0', 'stats.npy'), allow_pickle=True).all()
+            if custom_iscell in (None, False):
+                self.iscell = np.load(os.path.join(self.s2p_path, 'plane0', 'iscell.npy'))
+            else:
+                self.iscell = np.load(custom_iscell)
 
-        # setting suite2p path to be default
+            ts_to_pull = {}
+            for ts in which_ts:
+                ts_path = os.path.join(self.s2p_path, 'plane0', "%s.npy" % ts)
+                if os.path.exists(ts_path):
+                    ts_to_pull[ts] = ts_path
+            self.add_timeseries_from_file(**ts_to_pull)
+            for ts_name in ts_to_pull.keys():
+                self.timeseries[ts_name] = self.timeseries[ts_name][self.iscell[:, 0] > 0, :]
 
     def add_timeseries(self, **kwargs):
         for k, v in kwargs.items():
             if self.vr_data is not None:
+                if len(v.shape) < 2:
+                    v = v[np.newaxis, :]
                 # check that v is same length as vr_data
-                assert v.shape[0] == self.vr_data.shape[0], "%s must be the same length as vr_data" % k
+                assert v.shape[1] == self.vr_data.shape[0], "%s must be the same length as vr_data" % k
 
-            setattr(self, k, v)
+            self.timeseries[k] = v
 
     def add_timeseries_from_file(self, **kwargs):
+        self.add_timeseries(**{key: np.load(path) for key, path in kwargs.items()})
 
-        self.add_timeseries({attr: np.load(path) for attr, path in kwargs.items()})
-
-    def add_pos_binned_trial_matrix(self, attr_name):
+    def add_pos_binned_trial_matrix(self, ts_name):
         """
         add an attribute from an existing timeseries attribute
-        :param attr_name:
+        :param ts_name:
         :return:
         """
 
-        assert hasattr(self, attr_name), "%s is not an attribute" % attr_name
-        assert getattr(self, attr_name).is_timeseries, "%s must be a timeseries" % attr_name
-        trial_matrix_attr_name = attr_name + "_trial_matrix"
+        def _check_and_add_key(key):
+            assert key in self.timeseries.keys(), "%s is not an existing timeseries" % key
+            self.timeseries[key] = spatial_analyses.trial_matrix()
 
-        setattr(self, trial_matrix_attr_name, utils.trial_matrix())  ### add arguments to utils.trial matrix
+        if isinstance(ts_name, list) or isinstance(ts_name, tuple):
+            for _ts in ts_name:
+                _check_and_add_key(_ts)
+        else:
+            _check_and_add_key(ts_name)

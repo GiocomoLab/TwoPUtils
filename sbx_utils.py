@@ -5,10 +5,7 @@ import numpy as np
 import scipy.io as spio
 
 
-def trial_matrix(obj):
-    pass
-
-def loadsbxmat(filename): # replace with s2p_preprocessing definition to deal with FOV repeats
+def loadmat(filename): # replace with s2p_preprocessing definition to deal with FOV repeats
     '''
     this function should be called instead of direct spio.loadmat
     as it cures the problem of not properly recovering python dictionaries
