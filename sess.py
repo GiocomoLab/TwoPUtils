@@ -7,7 +7,7 @@ import dill
 import numpy as np
 
 from . import preprocessing as pp
-from . import utils
+from . import spatial_analyses
 
 
 def save_session(obj, output_basedir):
@@ -334,6 +334,10 @@ class Session(SessionInfo, ABC):
         assert os.path.exists(pklfile), "%s does not exist" % pklfile
         return pklfile
 
+    def load_scan_info(self):
+        if self.scanner = "NLW":
+            self.scan_info =
+
     def align_VR_to_2P(self, overwrite=False):
 
         if self.vr_data is None or overwrite:
@@ -380,4 +384,4 @@ class Session(SessionInfo, ABC):
         assert getattr(self, attr_name).is_timeseries, "%s must be a timeseries" % attr_name
         trial_matrix_attr_name = attr_name + "_trial_matrix"
 
-        setattr(self, trial_matrix_attr_name, utils.trial_matrix())  ### add arguments to utils.trial matrix
+        setattr(self, trial_matrix_attr_name, spatial_analyses.trial_matrix())  ### add arguments to utils.trial matrix
