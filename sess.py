@@ -285,6 +285,8 @@ class Session(SessionInfo, ABC):
 
         # vr data
         self.vr_data = None
+        self.trial_start_inds = None
+        self.teleport_inds = None
 
         # neural data
         self.scan_info = None
@@ -348,6 +350,9 @@ class Session(SessionInfo, ABC):
                     raise NotImplementedError
             else:
                 self.vr_data = df
+
+            self.trial_start_inds = self.vr_data.index[self.vr_data.tstart == 1]
+            self.teleport_inds = self.vr_data.index[self.vr_data.teleport == 1]
         else:
             print("VR data already set or overwrite=False")
 
@@ -385,7 +390,7 @@ class Session(SessionInfo, ABC):
     def add_timeseries_from_file(self, **kwargs):
         self.add_timeseries(**{key: np.load(path) for key, path in kwargs.items()})
 
-    def add_pos_binned_trial_matrix(self, ts_name):
+    def add_pos_binned_trial_matrix(self, ts_name, **trial_matrix_kwargs):
         """
         add an attribute from an existing timeseries attribute
         :param ts_name:
@@ -394,7 +399,8 @@ class Session(SessionInfo, ABC):
 
         def _check_and_add_key(key):
             assert key in self.timeseries.keys(), "%s is not an existing timeseries" % key
-            self.timeseries[key] = spatial_analyses.trial_matrix()
+            self.trial_matrices[key] = spatial_analyses.trial_matrix(self.timeseries[key], self.trial_start_inds,
+                                                                     self.teleport_inds, **trial_matrix_kwargs)
 
         if isinstance(ts_name, list) or isinstance(ts_name, tuple):
             for _ts in ts_name:

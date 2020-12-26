@@ -1,4 +1,5 @@
 import sqlite3 as sql
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -32,7 +33,7 @@ def _fix_teleports(df: pd.DataFrame):
     :return:
     """
 
-    tstart_inds_vec, teleport_inds_vec = np.zeros([df.shape[0], ]), np.zeros([df.shape[0], ])
+
     pos = df['pos']._values
     pos[pos < -50] = -50
     teleport_inds = np.where(np.ediff1d(pos, to_end=0) <= -50)[0]
@@ -81,8 +82,7 @@ def _ttl_check(ttl_times):
 def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False):
     """
     place holder
-    :param vr_dframe: 
-    :param infofile: 
+    :param infofile:
     :param n_imaging_planes: 
     :param n_lines: 
     :return: 
@@ -93,14 +93,14 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False):
 
     fr = scan_info['frame_rate']  # frame rate
     lr = fr * scan_info['config']['lines']/scan_info['fov_repeats']  # line rate
-    frames, lines = scan_info['frame'], scan_info['lines']
+    frames, lines = scan_info['frame']*scan_info['fov_repeats'], scan_info['lines']%(scan_info['config']['lines']/scan_info['fov_repeats'])
     ttl_times = frames / fr + lines / lr
 
     if run_ttl_check:
         mask = _ttl_check(ttl_times)
         ttl_times = ttl_times[mask]
         frames = frames[mask]
-        lines = lines[mask]
+        # lines = lines[mask]
 
 
     numVRFrames = frames.shape[0]
@@ -111,7 +111,7 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False):
 
     if (ca_time.shape[0] - ca_df.shape[0]) == 1:  # occasionally a 1 frame correction due to
         # scan stopping mid frame
-        print('one frame correction')
+        warnings.warn('one frame correction')
         ca_time = ca_time[:-1]
 
     ca_df.loc[:, 'time'] = ca_time
@@ -132,7 +132,7 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False):
 
     # nearest frame interpolation
     near_interp_cols = column_filter(('morph', 'towerJitter', 'wallJitter',
-                                      'bckgndJitter','trialnum','cmd','scanning'))
+                                      'bckgndJitter','trialnum','cmd','scanning','dreamland'))
 
     f_nearest = sp.interpolate.interp1d(ttl_times, vr_dataframe[near_interp_cols]._values, axis=0, kind='nearest')
     ca_df.loc[mask, near_interp_cols] = f_nearest(ca_time[mask])
@@ -153,7 +153,12 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False):
     # fill na here
     ca_df.loc[np.isnan(ca_df['teleport']._values), 'teleport'] = 0
     ca_df.loc[np.isnan(ca_df['tstart']._values), 'tstart'] = 0
-
+    # if first tstart gets clipped
+    if ca_df['teleport'].sum(axis=0) != ca_df['tstart'].sum(axis=0):
+        warnings.warn("Number of teleports and trial starts don't match")
+        if ca_df['teleport'].sum(axis=0) - ca_df['tstart'].sum(axis=0) == 1:
+            warnings.warn(("One more teleport and than trial start, Assuming the first trial start got clipped during "))
+            ca_df['tstart'].iloc[0]=1
     # smooth instantaneous speed
 
     cum_dz = sp.ndimage.filters.gaussian_filter1d(np.cumsum(ca_df['dz']._values), 5)

@@ -4,12 +4,20 @@ from scipy.ndimage import filters
 
 
 def gaussian(mu, sigma, x):
-    '''radial basis function centered at 'mu' with width 'sigma', sampled at 'x' '''
+    """
+    radial basis function centered at 'mu' with width 'sigma', sampled at 'x'
+    :param mu:
+    :param sigma:
+    :param x:
+    :return:
+    """
+
     return np.exp(-(mu - x) ** 2 / sigma ** 2)
 
 
 class LOTrialO:
-    '''Iterator for train and test indices for  leave-one-trial-out cross-validation
+    """
+    Iterator for train and test indices for  leave-one-trial-out cross-validation
     using all timepoints.
     usage: for train,test in LOTrialO(starts,stops,S.shape[0]):
                 S_train,S_test = S[train,:], S[test,:]
@@ -22,9 +30,16 @@ class LOTrialO:
 
             returns: train - boolean of training indices
                     test - boolean of test indices
-            '''
+
+    """
 
     def __init__(self, starts, stops, N):
+        """
+
+        :param starts:
+        :param stops:
+        :param N:
+        """
         self.train_mask = np.zeros([N, ])
         self.test_mask = np.zeros([N, ])
         self.starts = starts
@@ -32,10 +47,18 @@ class LOTrialO:
         self.N = N
 
     def __iter__(self):
+        """
+
+        :return:
+        """
         self.c = -1
         return self
 
     def get_masks(self):
+        """
+
+        :return:
+        """
         self.train_mask *= 0
         self.test_mask *= 0
         for t, (start, stop) in enumerate(zip(self.starts, self.stops)):
@@ -46,6 +69,10 @@ class LOTrialO:
         return self.train_mask > 0, self.test_mask > 0
 
     def __next__(self):
+        """
+
+        :return:
+        """
         self.c += 1
         if self.c >= self.starts.shape[0]:
             raise StopIteration
@@ -53,47 +80,73 @@ class LOTrialO:
         return train, test
 
 
-def nansmooth(A, sig):
-    '''apply Gaussian smoothing to matrix A containing nans with kernel sig
-    without propogating nans'''
+def nansmooth(a, sig):
+    """
+    apply Gaussian smoothing to matrix A containing nans with kernel sig
+    without propagating nans
+    :param a:
+    :param sig:
+    :return:
+    """
 
     # find nans
-    nan_inds = np.isnan(A)
-    A_nanless = np.copy(A)
+    nan_inds = np.isnan(a)
+    a_nanless = np.copy(a)
     # make nans 0
-    A_nanless[nan_inds] = 0
+    a_nanless[nan_inds] = 0
 
     # inversely weight nanned indices
-    One = np.ones(A.shape)
-    One[nan_inds] = .001
-    A_nanless = filters.gaussian_filter(A_nanless, sig)
-    One = filters.gaussian_filter(One, sig)
-    return A_nanless / One
+    one = np.ones(a.shape)
+    one[nan_inds] = .001
+    a_nanless = filters.gaussian_filter(a_nanless, sig)
+    one = filters.gaussian_filter(one, sig)
+    return a_nanless / one
 
 
-def dff(C, ops={'sig_baseline': 10, 'win_baseline': 300, 'sig_output': 3, 'method': 'maximin'}):
-    '''delta F / F using maximin method from Suite2P
+def dff(C, sig_baseline=10, win_baseline=300, sig_output=3, method='maximin'):
+    """
+    delta F / F using maximin method from Suite2P
     inputs: C - neuropil subtracted fluorescence (timepoints x neurons)
-    outputs dFF - timepoints x neurons'''
-    if ops['method'] == 'maximin':  # windowed baseline estimation
-        Flow = filters.gaussian_filter(C, [ops['sig_baseline'], 0])
-        Flow = filters.minimum_filter1d(Flow, ops['win_baseline'], axis=0)
-        Flow = filters.maximum_filter1d(Flow, ops['win_baseline'], axis=0)
-    else:
-        pass
+    outputs dFF - timepoints x neurons
 
-    C -= Flow  # substract baseline (dF)
-    C /= Flow  # divide by baseline (dF/F)
-    return filters.gaussian_filter(C, [ops['sig_output'], 0])  # smooth result
+    :param C:
+    :param sig_baseline:
+    :param win_baseline:
+    :param sig_output:
+    :param method:
+    :return:
+    """
+
+    if method == 'maximin':  # windowed baseline estimation
+        flow = filters.gaussian_filter(C, [sig_baseline, 0])
+        flow = filters.minimum_filter1d(flow, win_baseline, axis=0)
+        flow = filters.maximum_filter1d(flow, win_baseline, axis=0)
+    else:
+        flow = None
+        raise NotImplementedError
+
+    C -= flow  # substract baseline (dF)
+    C /= flow  # divide by baseline (dF/F)
+    return filters.gaussian_filter(C, [sig_output, 0])  # smooth result
 
 
 def correct_trial_mask(rewards, starts, stops, N):
-    '''create mask for indices where rewards is greater than 0
+    """
+    create mask for indices where rewards is greater than 0
     inputs: rewards - [trials,] list or array with number of rewards per trial
             starts - list of indices for trial starts
             stops - list of inidices for trial stops
             N - length of total timeseries (i.e. S.shape[0])
-    outputs: pcnt - mask of indices for trials where the animal received a reward'''
+    outputs: pcnt - mask of indices for trials where the animal received a reward
+
+
+    :param rewards:
+    :param starts:
+    :param stops:
+    :param N:
+    :return:
+    """
+
     pcnt = np.zeros([N, ])  # initialize
 
     # loop through trials and make mask
@@ -103,10 +156,16 @@ def correct_trial_mask(rewards, starts, stops, N):
 
 
 def lick_positions(licks, position):
-    ''' creates vector of lick positions for making a lick raster
+    """
+    creates vector of lick positions for making a lick raster
     inputs: licks - [timepoints,] or [timepoints,1] vector of number of licks at each timepoint
             positions - corresponding vector of positions
-    outputs: lickpos - nans where licks==0 and position where licks>0'''
+    outputs: lickpos - nans where licks==0 and position where licks>0
+
+    :param licks:
+    :param position:
+    :return:
+    """
 
     lickpos = np.zeros([licks.shape[0], ])
     lickpos[:] = np.nan
@@ -116,7 +175,8 @@ def lick_positions(licks, position):
 
 
 def smooth_raster(x, mat, ax=None, smooth=False, sig=2, vals=None, cmap='cool', tports=None):
-    '''plot mat ( ntrials x positions) as a smoothed histogram
+    """
+    plot mat ( ntrials x positions) as a smoothed histogram
     inputs: x - positions array (i.e. bin centers)
             mat - trials x positions array to be plotted
             ax - matplotlib axis object to use. if none, create a new figure and new axis
@@ -125,7 +185,19 @@ def smooth_raster(x, mat, ax=None, smooth=False, sig=2, vals=None, cmap='cool', 
             vals - values used to color lines in histogram (e.g. morph value)
             cmap - colormap used appled to vals
             tports - if mouse is teleported between the end of the trial, plot position  of teleport as x
-    outpus: ax - axis of plot object'''
+    outpus: ax - axis of plot object
+
+
+    :param x:
+    :param mat:
+    :param ax:
+    :param smooth:
+    :param sig:
+    :param vals:
+    :param cmap:
+    :param tports:
+    :return:
+    """
 
     if ax is None:
         f, ax = plt.subplots()
@@ -133,9 +205,7 @@ def smooth_raster(x, mat, ax=None, smooth=False, sig=2, vals=None, cmap='cool', 
     cm = plt.cm.get_cmap(cmap)
 
     if smooth:
-        k = Gaussian1DKernel(sig)
-        for i in range(mat.shape[0]):
-            mat[i, :] = convolve(mat[i, :], k, boundary='extend')
+        mat = filters.gaussian_filter1d(mat, sig, axis=1)
 
     for ind, i in enumerate(np.arange(mat.shape[0] - 1, 0, -1)):
         if vals is not None:
@@ -147,6 +217,6 @@ def smooth_raster(x, mat, ax=None, smooth=False, sig=2, vals=None, cmap='cool', 
             ax.scatter(tports[ind], i + .5, color=cm(np.float(vals[ind])), marker='x', s=50)
 
     ax.set_yticks(np.arange(0, mat.shape[0], 10))
-    ax.set_yticklabels(["%d" % l for l in np.arange(mat.shape[0], 0, -10).tolist()])
+    ax.set_yticklabels(["%d" % i for i in np.arange(mat.shape[0], 0, -10).tolist()])
 
     return ax

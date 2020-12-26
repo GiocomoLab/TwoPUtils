@@ -1,28 +1,35 @@
+from random import randrange
+
 import numpy as np
+
+from . import utilities as u
 
 
 def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10,
                  max_pos=450, speed=None, speed_thr=2, perm=False,
                  mat_only=False):
-    '''make a ntrials x position [x neurons] matrix[/tensor]---heavily used
-    inputs: arr - timepoints x anything array to be put into trials x positions format
-            pos - position at each timepoint
-            tstart_inds - indices of trial starts
-            tstop_inds - indices of trial stops
-            bin_size - spatial bin size in cm
-            max_pos - maximum position on track
-            speed - vector of speeds at each timepoint. If None, then no speed filtering is done
-            speed_thr - speed threshold in cm/s. Timepoints of low speed are dropped
-            perm - bool. whether to circularly permute timeseries before binning. used for permutation testing
-            mat_only - bool. return just spatial binned data or also occupancy, bin edges, and bin bin_centers
+    """
 
-    outputs: if mat_only
+    :param arr: timepoints x anything array to be put into trials x positions format
+    :param pos: position at each timepoint
+    :param tstart_inds: indices of trial starts
+    :param tstop_inds: indices of trial stops
+    :param bin_size: spatial bin size in cm
+    :param max_pos: maximum position on track
+    :param speed: vector of speeds at each timepoint. If None, then no speed filtering is done
+    :param speed_thr: speed threshold in cm/s. Timepoints of low speed are dropped
+    :param perm: bool. whether to circularly permute timeseries before binning. used for permutation testing
+    :param mat_only: bool. return just spatial binned data or also occupancy, bin edges, and bin bin_centers
+    :return: if mat_only
                     trial_mat - position binned data
-            else
+             else
                     trial_mat
                     occ_mat - trials x positions matrix of bin occupancy
                     bin_edges - position bin edges
-                    bin_centers - bin centers '''
+                    bin_centers - bin centers
+    """
+
+
 
     ntrials = tstart_inds.shape[0]
     if speed is not None:  # mask out speeds below speed threshold
