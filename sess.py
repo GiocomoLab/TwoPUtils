@@ -128,7 +128,7 @@ class SessionInfo:
             print("What is the base directory for your VR data?")
             self.basedir = input()
 
-        if self.basedir_2P is None:
+        if self.basedir_2P is None and not self.VR_only:
             print("What is the base directory for you 2P data?")
             self.basedir_2P = input()
 
