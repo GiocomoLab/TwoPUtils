@@ -196,7 +196,7 @@ class SessionInfo:
 
         # look for VR Data
         if self.vr_filename is None:
-            self.vr_filename = os.path.join(self.basedir, self.mouse,
+            self.vr_filename = os.path.join(self.basedir_VR, self.mouse,
                                             self.date, "%s_%d.sqlite" % (self.scene, self.session))
 
         if not os.path.exists(self.vr_filename):
