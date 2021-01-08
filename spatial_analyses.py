@@ -5,7 +5,7 @@ import numpy as np
 import utilities as u
 
 
-def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10,
+def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
                  max_pos=450, speed=None, speed_thr=2, perm=False,
                  mat_only=False):
     """
@@ -37,7 +37,7 @@ def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10,
         arr[speed < speed_thr, :] = np.nan
 
     # make position bins
-    bin_edges = np.arange(0, max_pos + bin_size, bin_size)
+    bin_edges = np.arange(min_pos, max_pos + bin_size, bin_size)
     bin_centers = bin_edges[:-1] + bin_size / 2
     bin_edges = bin_edges.tolist()
 
