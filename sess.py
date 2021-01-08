@@ -107,7 +107,7 @@ class SessionInfo:
             self._check_for_coaligned_suite2p_sessions()
 
         # print available fields
-        self.print_session_info()
+        # self.print_session_info()
 
     def _check_minimal_keys(self):
         """
