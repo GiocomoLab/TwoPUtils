@@ -45,6 +45,7 @@ def loadmat(filename):
     info['max_idx'] = int(
         os.path.getsize(filename[:-4] + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1)*int(info['fov_repeats'])
     # info['max_idx']=info['frame'][-1]
+    
     info['frame_rate'] = info['resfreq'] / info['config']['lines'] * (2 - info['scanmode'])*info['fov_repeats']
 
     return info

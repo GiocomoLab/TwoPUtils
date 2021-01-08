@@ -390,7 +390,7 @@ class Session(SessionInfo, ABC):
     def add_timeseries_from_file(self, **kwargs):
         self.add_timeseries(**{key: np.load(path) for key, path in kwargs.items()})
 
-    def add_pos_binned_trial_matrix(self, ts_name, **trial_matrix_kwargs):
+    def add_pos_binned_trial_matrix(self, ts_name, pos_key, **trial_matrix_kwargs):
         """
         add an attribute from an existing timeseries attribute
         :param ts_name:
@@ -399,7 +399,7 @@ class Session(SessionInfo, ABC):
 
         def _check_and_add_key(key):
             assert key in self.timeseries.keys(), "%s is not an existing timeseries" % key
-            self.trial_matrices[key] = spatial_analyses.trial_matrix(self.timeseries[key], self.trial_start_inds,
+            self.trial_matrices[key] = spatial_analyses.trial_matrix(self.timeseries[key],self.vr_data[pos_key]._values, self.trial_start_inds,
                                                                      self.teleport_inds, **trial_matrix_kwargs)
 
         if isinstance(ts_name, list) or isinstance(ts_name, tuple):
