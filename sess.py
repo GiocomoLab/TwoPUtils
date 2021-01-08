@@ -399,7 +399,7 @@ class Session(SessionInfo, ABC):
 
         def _check_and_add_key(key):
             assert key in self.timeseries.keys(), "%s is not an existing timeseries" % key
-            self.trial_matrices[key] = spatial_analyses.trial_matrix(self.timeseries[key],self.vr_data[pos_key]._values, self.trial_start_inds,
+            self.trial_matrices[key] = spatial_analyses.trial_matrix(self.timeseries[key].T,self.vr_data[pos_key]._values, self.trial_start_inds,
                                                                      self.teleport_inds, **trial_matrix_kwargs)
 
         if isinstance(ts_name, list) or isinstance(ts_name, tuple):
