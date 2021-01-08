@@ -340,7 +340,7 @@ class Session(SessionInfo, ABC):
 
         if self.vr_data is None or overwrite:
             # load sqlite file as pandas array
-            df = pp.load_sqlite(self.vr_filename)
+            df = pp.load_sqlite(self.vr_filename,fix_teleports=False)
             if not self.VR_only:
                 # feed pandas array and scene name to alignment function
                 if self.scanner == "NLW":
