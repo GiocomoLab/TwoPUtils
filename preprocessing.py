@@ -33,8 +33,10 @@ def _fix_teleports(df: pd.DataFrame):
     :return:
     """
 
-
-    pos = df['pos']._values
+    try:
+        pos = df['pos']._values
+    except:
+        pos = df['posz']._values
     pos[pos < -50] = -50
     teleport_inds = np.where(np.ediff1d(pos, to_end=0) <= -50)[0]
     tstart_inds = np.append([0], teleport_inds[:-1] + 1)
