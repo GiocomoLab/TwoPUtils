@@ -100,12 +100,12 @@ def sbxread(filename, k=0, N=None):
         N = min([N, max_idx - k])
 
     nSamples = info['sz'][1] * info['recordsPerBuffer'] / info['fov_repeats']* 2 * info['nChan']
-    print(nSamples, N)
+    # print(nSamples, N)
 
     # Open File
     fo = open(filename + '.sbx')
 
-    print(int(k) * int(nSamples))
+    # print(int(k) * int(nSamples))
     fo.seek(int(k) * int(nSamples), 0)
     x = np.fromfile(fo, dtype='uint16', count=int(nSamples / 2 * N))
     x = np.int16((np.int32(65535) - x).astype(np.int32) / np.int32(2))
@@ -142,7 +142,7 @@ def sbx2h5(filename, channel_i=-1, batch_size=1000, dataset="data", output_name=
         if channel_i == -1:
             dset = f.create_dataset(dataset, (int(max_idx) * nchan, int(info['sz'][0]/info['fov_repeats']), info['sz'][1]))
             while k <= max_idx:  # info['max_idx']:
-                print(k)
+                # print(k)
                 data = sbxread(filename, k, batch_size)
                 data = np.transpose(data[:, :, :, :], axes=(0, 3, 2, 1))
 
@@ -158,7 +158,7 @@ def sbx2h5(filename, channel_i=-1, batch_size=1000, dataset="data", output_name=
         else:
             dset = f.create_dataset(dataset, (int(max_idx), int(info['sz'][0]/info['fov_repeats']), info['sz'][1]))
             while k <= max_idx:  # info['max_idx']:
-                print(k)
+                # print(k)
                 data = sbxread(filename, k, batch_size)
                 data = np.transpose(data[channel_i, :, :, :], axes=(2, 1, 0))
                 print(k, min((k + batch_size, info['max_idx'])))
