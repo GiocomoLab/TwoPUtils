@@ -92,19 +92,19 @@ class SessionInfo:
             # check that provided keys are the right type
             warnings.warn("skipping checking keys, remaining initialization not guaranteed to work")
 
-        # # check for VR data
-        # if self.vr_filename is None:
-        #     self._check_for_VR_data()
-        #
-        # if not self.VR_only:
-        #     # check for raw 2P data
-        #     self._check_for_2P_data()
-        #
-        #     # check for suite 2P data
-        #     self._check_for_suite2P_data()
-        #
-        #     # check for other sessions that 2P data is aligned to
-        #     self._check_for_coaligned_suite2p_sessions()
+        # check for VR data
+        if self.vr_filename is None:
+            self._check_for_VR_data()
+
+        if not self.VR_only:
+            # check for raw 2P data
+            self._check_for_2P_data()
+
+            # check for suite 2P data
+            self._check_for_suite2P_data()
+
+            # check for other sessions that 2P data is aligned to
+            self._check_for_coaligned_suite2p_sessions()
 
         # print available fields
         # self.print_session_info()
@@ -196,8 +196,11 @@ class SessionInfo:
 
         # look for VR Data
         if self.vr_filename is None:
-            self.vr_filename = os.path.join(self.basedir_VR, self.mouse,
-                                            self.date, "%s_%d.sqlite" % (self.scene, self.session))
+            try:
+                self.vr_filename = os.path.join(self.basedir_VR, self.mouse,
+                                                self.date, "%s_%d.sqlite" % (self.scene, self.session))
+            except:
+                pass
 
         if not os.path.exists(self.vr_filename):
             warnings.warn("VR File %s does not exist!" % self.vr_filename)
