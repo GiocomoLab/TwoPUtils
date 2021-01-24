@@ -203,7 +203,7 @@ class SessionInfo:
                 pass
 
         if not os.path.exists(self.vr_filename):
-            warnings.warn("VR File %s does not exist!" % self.vr_filename)
+            warnings.warn("VR File does not exist!", self.vr_filename)
 
     def _check_for_2P_data(self):
         """
