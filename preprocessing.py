@@ -126,8 +126,12 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False):
 
     fr = scan_info['frame_rate']  # frame rate
     lr = fr * scan_info['config']['lines']/scan_info['fov_repeats']  # line rate
-    frames = np.array([f*scan_info['fov_repeats'] for f in scan_info['frames']])
-    lines = np.array([l%scan_info['fold_lines'] for l in scan_info['lines']])
+    try:
+        frames = np.array([f*scan_info['fov_repeats'] for f in scan_info['frames']])
+        lines = np.array([l%scan_info['fold_lines'] for l in scan_info['lines']])
+    except:
+        frames = np.array([f * scan_info['fov_repeats'] for f in scan_info['frame']])
+        lines = np.array([l % scan_info['fold_lines'] for l in scan_info['line']])
     ttl_times = frames / fr + lines / lr
 
     if run_ttl_check:
