@@ -59,7 +59,7 @@ def _fix_teleports(df: pd.DataFrame):
     df['tstart'] = tstart_inds_vec
     # return df
 
-def _fix_tstarts(df: dataframe):
+def _fix_tstarts(df: pd.DataFrame):
     """
 
     :param df:
