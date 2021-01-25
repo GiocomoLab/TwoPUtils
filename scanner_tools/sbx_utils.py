@@ -41,7 +41,7 @@ def loadmat(filename):
     # Determine number of frames in whole file
 
     info['orig_max_idx'] = int(
-        os.path.getsize(filename[:-4] + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1) * int(info['fov_repeats'])
+        os.path.getsize(filename[:-4] + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1) 
 
 
     info['max_idx'] = int(
