@@ -59,6 +59,37 @@ def _fix_teleports(df: pd.DataFrame):
     df['tstart'] = tstart_inds_vec
     # return df
 
+def _fix_tstarts(df: dataframe):
+    """
+
+    :param df:
+    :return:
+    """
+
+    try:
+        pos = df['pos']._values
+    except:
+        pos = df['posz']._values
+
+    teleport_inds = np.where(df['teleport'].values_ ==1)[0]
+    tstart_inds = np.append([0], teleport_inds[:-1] + 1)
+
+    for ind in range(tstart_inds.shape[0]):  # for teleports
+        while (pos[tstart_inds[ind]] < 0):  # while position is negative
+            if tstart_inds[ind] < pos.shape[0] - 1:  # if you haven't exceeded the vector length
+                tstart_inds[ind] = tstart_inds[ind] + 1  # go up one index
+            else:  # otherwise you should be the last teleport and delete this index
+                print("deleting last index from trial start")
+                tstart_inds = np.delete(tstart_inds, ind)
+                break
+
+    tstart_inds_vec = np.zeros([df.shape[0], ])
+    tstart_inds_vec[tstart_inds] = 1
+
+
+    df['tstart'] = tstart_inds_vec
+
+
 def _ttl_check(ttl_times):
     """
     on Feb 6, 2019 noticed that AA's new National Instruments board
