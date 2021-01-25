@@ -71,7 +71,7 @@ def _fix_tstarts(df: pd.DataFrame):
     except:
         pos = df['posz']._values
 
-    teleport_inds = np.where(df['teleport'].values_ ==1)[0]
+    teleport_inds = np.where(df['teleport']._values ==1)[0]
     tstart_inds = np.append([0], teleport_inds[:-1] + 1)
 
     for ind in range(tstart_inds.shape[0]):  # for teleports
