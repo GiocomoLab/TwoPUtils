@@ -365,7 +365,10 @@ class Session(SessionInfo, ABC):
             print("multiple planes functionality not added in yet, assuming 1 plane")
         else:
             self.s2p_ops = np.load(os.path.join(self.s2p_path, 'plane0', 'ops.npy'), allow_pickle=True).all()
-            self.s2p_stats = np.load(os.path.join(self.s2p_path, 'plane0', 'stats.npy'), allow_pickle=True).all()
+            try:
+                self.s2p_stats = np.load(os.path.join(self.s2p_path, 'plane0', 'stats.npy'), allow_pickle=True)
+            except:
+                self.s2p_stats = np.load(os.path.join(self.s2p_path, 'plane0', 'stat.npy'), allow_pickle=True)
             if custom_iscell in (None, False):
                 self.iscell = np.load(os.path.join(self.s2p_path, 'plane0', 'iscell.npy'))
             else:
