@@ -217,4 +217,4 @@ def placecell_sort(C_trial_mat,masks,cv_sort=True,sigma = 2):
         fr = fr/norms[m]
         fr = gaussian_filter1d(fr[:,sorts[m]],sigma,axis=0)
 
-    return fr.T
+    return fr.T, sorts
