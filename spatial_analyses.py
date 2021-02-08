@@ -212,9 +212,9 @@ def placecell_sort(C_trial_mat,masks,cv_sort=True,sigma = 2):
         # get rate maps for other half of trials
 
         fr = np.squeeze(np.nanmean(C_trial_mat[1::2,:,:],axis=0))
-        fr = fr[:,masks[m]]
+        fr = fr[:,masks]
         # print(fr.shape,norms[m])
         fr = fr/norms[m]
-        fr = gaussian_filter1d(fr[:,sorts[m]],sigma,axis=0)
+        fr = gaussian_filter1d(fr[:,sorts],sigma,axis=0)
 
     return fr.T, sorts
