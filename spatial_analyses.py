@@ -178,3 +178,43 @@ def spatial_info_perm_test(SI,C,position,tstart,tstop,nperms = 10000,shuffled_SI
         p[cell] = np.sum(SI[cell]>shuffled_SI[:,cell])/nperms
 
     return p, shuffled_SI
+
+def placecell_sort(C_trial_mat,masks,cv_sort=True,sigma = 2):
+    '''plot place place cells across morph values using a cross-validated population sorting
+    inputs: C_morph_dict - output from u.trial_type_dict(C_trial_mat, morphs) where C is the [trials, positions,ncells]
+                and morphs is [ntrials,] array of mean morph values
+            masks - dictionary of place cell masks from place_cells_calc
+            cv_sort - bool; calculate sorting from all trials (False) or a randomly selected half of trials (True)
+            plot - bool; whether or not to actually generate matplotlib plots or just return sorted data
+    outputs: f - figure handle
+            ax - axis array
+            PC_dict - dictionary of cross-val sorted population activity rate maps'''
+
+
+    getSort = lambda fr : np.argsort(np.argmax(np.squeeze(np.nanmean(fr,axis=0)),axis=0))
+
+    # sorts,norms = {},{}
+    if cv_sort:
+        # get sort for 0 morph from random half of trials
+        ntrials = C_trial_mat.shape[0]
+
+        arr = C_trial_mat[:,:,masks]
+        arr = arr[::2,:,:] # odd trials
+        sorts = getSort(arr)
+
+        arr = np.copy(arr)
+        arr[np.isnan(arr)]=0.
+        norms = np.amax(np.nanmean(arr,axis=0),axis=0) # normalization from training data
+
+
+
+
+        # get rate maps for other half of trials
+
+        fr = np.squeeze(np.nanmean(C_morph_dict[mm][1::2,:,:],axis=0))
+        fr = fr[:,masks[m]]
+        # print(fr.shape,norms[m])
+        fr = fr/norms[m]
+        fr = gaussian_filter1d(fr[:,sorts[m]],sigma,axis=0)
+
+    return fr.T
