@@ -84,7 +84,7 @@ def spatial_info(frmap,occupancy):
     return SI
 
 
-def place_cells_calc(C, position, trial_info, tstart_inds,
+def place_cells_calc(C, position, tstart_inds,
                 teleport_inds,pthr = .05,speed=None,win_trial_perm=True,morphlist = [0,1],
                 bootstrap = True,nperms = 100):
     '''Find cells that have significant spatial information info. Use bootstrapped estimate of each cell's
@@ -108,8 +108,7 @@ def place_cells_calc(C, position, trial_info, tstart_inds,
     '''
 
     # get by trial info
-    C_trial_mat, occ_trial_mat, edges,centers = u.make_pos_bin_trial_matrices(C,position,tstart_inds,teleport_inds,speed = speed)
-    morphs = trial_info['morphs'] # mean morph values
+    C_trial_mat, occ_trial_mat, edges,centers = trial_matrix(C,position,tstart_inds,teleport_inds,speed = speed)
 
     def spatinfo_per_morph(_trial_mat,_occ_mat):
         _SI = {}
@@ -126,20 +125,17 @@ def place_cells_calc(C, position, trial_info, tstart_inds,
     for perm in range(nperms):
         if perm%100 == 0:
             print('perm',perm)
-        C_trial_mat, occ_trial_mat, _,__ = u.make_pos_bin_trial_matrices(C,position,tstart_inds,teleport_inds,speed = speed,perm=True)
+        C_trial_mat, occ_trial_mat, _,__ = trial_matrix(C,position,tstart_inds,teleport_inds,speed = speed,perm=True)
         _SI_perm =  spatinfo_per_morph(C_trial_mat,occ_trial_mat)
         for m in _SI_perm.keys():
             SI_perms[m][perm,:]=_SI_perm[m]
-    masks = {}
-    pvals = {}
-    for m in morphlist:
-        masks[m]=[]
-        p = np.ones([C.shape[1],])
-        for cell in range(C.shape[1]):
-            p[cell] = (SI[m][cell] <= SI_perms[m][:,cell]).sum()/nperms
-        masks[m] = p<=pthr
-        pvals[m] = p
-    return masks, SI, pvals
+
+    p = np.ones([C.shape[1],])
+    for cell in range(C.shape[1]):
+        p[cell] = (SI[cell] <= SI_perms[:,cell]).sum()/nperms
+    masks = p<=pthr
+
+    return masks, SI, p
 
 
 def spatial_info_perm_test(SI,C,position,tstart,tstop,nperms = 10000,shuffled_SI=None,win_trial = True):
