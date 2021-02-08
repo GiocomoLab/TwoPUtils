@@ -119,7 +119,7 @@ def place_cells_calc(C, position, tstart_inds,
 
     SI = spatinfo_per_morph(C_trial_mat,occ_trial_mat)
 
-    SI_perms = {m:np.zeros((nperms,C.shape[1])) for m in morphlist}
+    SI_perms = np.zeros(nperms,C.shape[1])
 
     for perm in range(nperms):
         if perm%100 == 0:
