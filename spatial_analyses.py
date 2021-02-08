@@ -112,10 +112,9 @@ def place_cells_calc(C, position, tstart_inds,
 
     def spatinfo_per_morph(_trial_mat,_occ_mat):
         _SI = {}
-        for m in morphlist:
-            _occ = _occ_mat[morphs==m,:].sum(axis=0)
-            _occ/=_occ.sum()
-            _SI[m] = spatial_info(np.nanmean(_trial_mat[morphs==m,:,:],axis=0),_occ)
+        _occ = _occ_mat.sum(axis=0)
+        _occ/=_occ.sum()
+        _SI[m] = spatial_info(np.nanmean(_trial_mat,axis=0),_occ)
         return _SI
 
     SI = spatinfo_per_morph(C_trial_mat,occ_trial_mat)
@@ -160,11 +159,11 @@ def spatial_info_perm_test(SI,C,position,tstart,tstop,nperms = 10000,shuffled_SI
         for perm in range(nperms): # for each permutation
 
             if win_trial: # within trial permuation
-                C_tmat, occ_tmat, edes,centers = u.make_pos_bin_trial_matrices(C,position,tstart,tstop,perm=True)
+                C_tmat, occ_tmat, edes,centers = trial_matrix(C,position,tstart,tstop,perm=True)
             else:
                 C_perm = np.roll(C,randrange(30,position.shape[0],30),axis=0) # perform permutation over whole time series
                 # print(tstart,tstop)
-                C_tmat, occ_tmat, edes,centers = u.make_pos_bin_trial_matrices(C,position,tstart,tstop,perm=False)
+                C_tmat, occ_tmat, edes,centers = trial_matrix(C,position,tstart,tstop,perm=False)
 
             fr, occ = np.squeeze(np.nanmean(C_tmat,axis=0)), occ_tmat.sum(axis=0) # average firing rate and occupancy
             occ/=occ.sum()
