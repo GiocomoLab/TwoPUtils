@@ -1,6 +1,7 @@
 from random import randrange
 
 import numpy as np
+import scipy as sp
 
 import utilities as u
 
