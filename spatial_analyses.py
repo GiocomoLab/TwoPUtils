@@ -126,8 +126,8 @@ def place_cells_calc(C, position, tstart_inds,
             print('perm',perm)
         C_trial_mat, occ_trial_mat, _,__ = trial_matrix(C,position,tstart_inds,teleport_inds,speed = speed,perm=True)
         _SI_perm =  spatinfo_per_morph(C_trial_mat,occ_trial_mat)
-        for m in _SI_perm.keys():
-            SI_perms[perm,:]=_SI_perm
+
+        SI_perms[perm,:]=_SI_perm
 
     p = np.ones([C.shape[1],])
     for cell in range(C.shape[1]):
