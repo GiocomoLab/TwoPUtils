@@ -114,7 +114,7 @@ def place_cells_calc(C, position, tstart_inds,
         _SI = {}
         _occ = _occ_mat.sum(axis=0)
         _occ/=_occ.sum()
-        _SI[m] = spatial_info(np.nanmean(_trial_mat,axis=0),_occ)
+        _SI = spatial_info(np.nanmean(_trial_mat,axis=0),_occ)
         return _SI
 
     SI = spatinfo_per_morph(C_trial_mat,occ_trial_mat)
@@ -127,7 +127,7 @@ def place_cells_calc(C, position, tstart_inds,
         C_trial_mat, occ_trial_mat, _,__ = trial_matrix(C,position,tstart_inds,teleport_inds,speed = speed,perm=True)
         _SI_perm =  spatinfo_per_morph(C_trial_mat,occ_trial_mat)
         for m in _SI_perm.keys():
-            SI_perms[m][perm,:]=_SI_perm[m]
+            SI_perms[perm,:]=_SI_perm
 
     p = np.ones([C.shape[1],])
     for cell in range(C.shape[1]):
