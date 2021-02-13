@@ -79,7 +79,7 @@ def spatial_info(frmap,occupancy):
 
     ### vectorizing
     P_map = frmap - np.amin(frmap)+.001 # make sure there's no negative activity rates
-    P_map = P_map/P_map.mean(axis=0)
+    P_map = P_map/P_map.mean(axis=0,keepdims=True)
     SI = ((P_map*occupancy[:,np.newaxis])*np.log2(P_map)).sum(axis=0) # Skaggs and McNaughton spatial information
 
     return SI
