@@ -218,5 +218,7 @@ def placecell_sort(C_trial_mat,masks,cv_sort=True,sigma = 2):
         fr = fr/norms
         if sigma>0:
             fr = sp.ndimage.filters.gaussian_filter1d(fr[:,sorts],sigma,axis=0)
+        else:
+            fr = fr[:,sorts]
 
     return fr.T, sorts
