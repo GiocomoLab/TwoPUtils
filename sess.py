@@ -7,8 +7,8 @@ import dill
 import numpy as np
 
 from scanner_tools import sbx_utils
-import preprocessing as pp
-import spatial_analyses
+from . import preprocessing as pp
+from . import spatial_analyses
 
 
 def save_session(obj, output_basedir):
