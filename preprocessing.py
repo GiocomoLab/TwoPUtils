@@ -32,7 +32,7 @@ def _fix_teleports(df: pd.DataFrame):
     :param df:
     :return:
     """
-
+    print("Fixing teleports")
     try:
         pos = df['pos']._values
     except:
