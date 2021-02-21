@@ -68,10 +68,10 @@ def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
     if impute_nans:
 
         # while np.isnan(trial_mat).sum()>0:
-        for cell in range(trial_mat.shape[2]):
-            cell_mat = trial_mat[:,:,cell]
-            cell_mat[np.isnan(cell_mat)] = np.nanmean(cell_mat,axis=1)
-            trial_mat[:,:,cell]=cell_mat
+        for trial in range(trial_mat.shape[0]):
+            _trial_mat = np.squeeze(trial_mat[trial,:,:])
+            _trial_mat[np.isnan(_trial_mat)] = np.nanmean(_trial_mat,axis=0)
+            trial_mat[trial,:,:]=_trial_mat
             # trial_mat[np.isnan(trial_mat[:,:,cell]),cell] =np.nanmean(trial_mat[:,:,cell],axis=1)
             # naninds = np.argwhere(np.isnan(trial_mat))
             # for _nanind in naninds:
