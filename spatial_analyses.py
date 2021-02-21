@@ -93,8 +93,7 @@ def spatial_info(frmap,occupancy):
 
 
 def place_cells_calc(C, position, tstart_inds,
-                teleport_inds,pthr = .05,speed=None,win_trial_perm=True,morphlist = [0,1],
-                bootstrap = True,nperms = 100):
+                     teleport_inds, pthr = .05, speed=None, nperms = 100):
     '''Find cells that have significant spatial information info. Use bootstrapped estimate of each cell's
     spatial information to minimize effect of outlier trials
     inputs:C - [timepoints, neurons] activity rate/dFF over whole session
