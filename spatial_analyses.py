@@ -69,8 +69,9 @@ def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
         while np.isnan(trial_mat).sum()>0:
             naninds = np.argwhere(np.isnan(trial_mat))
             for _nanind in naninds:
-                trial_mat[_nanind[0], _nanind[1]] = np.nanmean([trial_mat[_nanind[0], _nanind[1]-1],
-                                                                trial_mat[_nanind[0], (_nanind[1]+1) % trial_mat.shape[1]]])
+                # trial_mat[_nanind[0], _nanind[1]] = np.nanmean([trial_mat[_nanind[0], _nanind[1]-1],
+                #                                                 trial_mat[_nanind[0], (_nanind[1]+1) % trial_mat.shape[1]]])
+                trial_mat[_nanind[0], _nanind[1]] = np.nanmean(trial_mat[_nanind[0], :])
 
     if mat_only:
         return np.squeeze(trial_mat)
