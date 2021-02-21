@@ -56,6 +56,7 @@ def _fix_teleports(df: pd.DataFrame):
 
     teleport_inds_vec = np.zeros([df.shape[0], ])
     teleport_inds_vec[teleport_inds] = 1
+    assert tstart_inds_vec.sum() == teleport_inds_vec.sum(), "start and teleport ind2 to vec failed"
     df['teleport'] = teleport_inds_vec
     df['tstart'] = tstart_inds_vec
     # return df
