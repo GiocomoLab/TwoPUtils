@@ -93,7 +93,7 @@ def spatial_info(frmap,occupancy):
 
 
 def place_cells_calc(C, position, tstart_inds,
-                     teleport_inds, pthr = .05, speed=None, nperms = 100):
+                     teleport_inds, pthr = .05, speed=None, nperms = 100, **kwargs):
     '''Find cells that have significant spatial information info. Use bootstrapped estimate of each cell's
     spatial information to minimize effect of outlier trials
     inputs:C - [timepoints, neurons] activity rate/dFF over whole session
@@ -115,7 +115,7 @@ def place_cells_calc(C, position, tstart_inds,
     '''
 
     # get by trial info
-    C_trial_mat, occ_trial_mat, edges,centers = trial_matrix(C,position,tstart_inds,teleport_inds,speed = speed)
+    C_trial_mat, occ_trial_mat, edges,centers = trial_matrix(C,position,tstart_inds,teleport_inds,speed = speed, **kwargs)
 
     def spatinfo_per_morph(_trial_mat,_occ_mat):
         _SI = {}
@@ -131,7 +131,7 @@ def place_cells_calc(C, position, tstart_inds,
     for perm in range(nperms):
         if perm%100 == 0:
             print('perm',perm)
-        C_trial_mat, occ_trial_mat, _,__ = trial_matrix(C,position,tstart_inds,teleport_inds,speed = speed,perm=True)
+        C_trial_mat, occ_trial_mat, _,__ = trial_matrix(C,position,tstart_inds,teleport_inds,speed = speed,perm=True,**kwargs)
         _SI_perm =  spatinfo_per_morph(C_trial_mat,occ_trial_mat)
 
         SI_perms[perm,:]=_SI_perm
@@ -144,7 +144,7 @@ def place_cells_calc(C, position, tstart_inds,
     return masks, SI, p
 
 
-def spatial_info_perm_test(SI,C,position,tstart,tstop,nperms = 10000,shuffled_SI=None,win_trial = True):
+def spatial_info_perm_test(SI,C,position,tstart,tstop,nperms = 10000,shuffled_SI=None,win_trial = True, **kwargs):
     '''run permutation test on spatial information calculations and return empirical p-values for each cell
     inputs: SI - [ncells,] array of 'true' spatial information for each cell
             C - [ntimepoints,cells] activity rate of each cell over whole session
@@ -166,11 +166,11 @@ def spatial_info_perm_test(SI,C,position,tstart,tstop,nperms = 10000,shuffled_SI
         for perm in range(nperms): # for each permutation
 
             if win_trial: # within trial permuation
-                C_tmat, occ_tmat, edes,centers = trial_matrix(C,position,tstart,tstop,perm=True)
+                C_tmat, occ_tmat, edes,centers = trial_matrix(C,position,tstart,tstop,perm=True, **kwargs)
             else:
                 C_perm = np.roll(C,randrange(30,position.shape[0],30),axis=0) # perform permutation over whole time series
                 # print(tstart,tstop)
-                C_tmat, occ_tmat, edes,centers = trial_matrix(C,position,tstart,tstop,perm=False)
+                C_tmat, occ_tmat, edes,centers = trial_matrix(C,position,tstart,tstop,perm=False, **kwargs)
 
             fr, occ = np.squeeze(np.nanmean(C_tmat,axis=0)), occ_tmat.sum(axis=0) # average firing rate and occupancy
             occ/=occ.sum()
