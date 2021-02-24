@@ -152,10 +152,12 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False):
 
     numVRFrames = frames.shape[0]
 
+
     # create empty pandas dataframe to store calcium aligned data
     ca_df = pd.DataFrame(columns=vr_dataframe.columns, index=np.arange(scan_info['max_idx']))
     ca_time = np.arange(0, 1 / fr * scan_info['max_idx'], 1 / fr)  # time on this even grid
     ca_time[ca_time>ttl_times[-1]]=ttl_times[-1]
+    print(ttl_times.shape,ca_time.shape)
     print(ttl_times[-1],ca_time[-1])
     if (ca_time.shape[0] - ca_df.shape[0]) == 1:  # occasionally a 1 frame correction due to
         # scan stopping mid frame
