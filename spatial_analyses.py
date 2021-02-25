@@ -122,7 +122,7 @@ def place_cells_calc(C, position, tstart_inds,
 
     def spatinfo_per_morph(_trial_mat,_occ_mat):
         _SI = {}
-        _occ = _occ_mat.sum(axis=0)
+        _occ = _occ_mat.sum(axis=0) + 1E-3
         _occ/=_occ.sum()
         _SI = spatial_info(np.nanmean(_trial_mat,axis=0),_occ)
         return _SI
