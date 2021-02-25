@@ -61,7 +61,8 @@ def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
         for b, (edge1, edge2) in enumerate(zip(bin_edges[:-1], bin_edges[1:])):
             if np.where((pos_t > edge1) & (pos_t <= edge2))[0].shape[0] > 0:
                 trial_mat[trial, b] = np.nanmean(arr_t[(pos_t > edge1) & (pos_t <= edge2), :], axis=0)
-                occ_mat[trial, b] = np.where((pos_t > edge1) & (pos_t <= edge2))[0].shape[0]
+                # occ_mat[trial, b] = np.where((pos_t > edge1) & (pos_t <= edge2))[0].shape[0]
+                occ_mat[trial, b] = (1-np.isnan(arr_t[(pos_t > edge1) & (pos_t <= edge2),0])).sum()
             else:
                 pass
 
