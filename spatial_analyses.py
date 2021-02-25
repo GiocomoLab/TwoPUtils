@@ -78,7 +78,7 @@ def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
     if mat_only:
         return np.squeeze(trial_mat)
     else:
-        return np.squeeze(trial_mat), np.squeeze(occ_mat / occ_mat.sum(axis=1)[:, np.newaxis]), bin_edges, bin_centers
+        return np.squeeze(trial_mat), np.squeeze(occ_mat / (occ_mat.sum(axis=1)[:, np.newaxis] + 1E-3)), bin_edges, bin_centers
 
 
 def spatial_info(frmap,occupancy):
