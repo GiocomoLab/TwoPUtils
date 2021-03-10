@@ -15,6 +15,7 @@ class ROIAligner:
     Class for aligning ROIs across imaging sessions. This code assumes that the ROIs have been curated for
     each session already.
     """
+
     def __init__(self, ref_sess, targ_sess):
         """
 
@@ -36,6 +37,9 @@ class ROIAligner:
         # allocate
         self.ref_match_inds = [[]] * len(self.targ_sess)
         self.targ_match_inds = [[]] * len(self.targ_sess)
+        self.frames = None
+        self.rigid_offsets = None
+        self.nonrigid_offsets = None
 
         # align targ_sess mean images to ref_sess mean image
         self.align_mean_images()
@@ -56,14 +60,14 @@ class ROIAligner:
         :return:
         """
 
-        #update ops
+        # update ops
         reg_ops = self.ref_sess.s2p_ops
         reg_ops.update(ops_kwargs)
 
         # get mean images
         self.frames = np.array([s.s2p_ops['meanImg'] for s in self.targ_sess]).astype(np.float32)
         # align them
-        self.frames, self.rigidOffsets, self.nonrigidOffsets = TwoPUtils.roi_matching.align_stack(
+        self.frames, self.rigid_offsets, self.nonrigid_offsets = TwoPUtils.roi_matching.align_stack(
             self.ref_sess.s2p_ops['meanImg'], self.frames, reg_ops)
 
     def match_session_pair(self, index):
@@ -76,13 +80,13 @@ class ROIAligner:
 
         # make roi x Ly x Lx array of masks
         targ_roistack = make_roistack(self.targ_sess[index].s2p_stats,
-                                                             self.targ_sess[index].s2p_ops)
+                                      self.targ_sess[index].s2p_ops)
 
         # apply alignment transform to roi masks
-        self.align_roistack(targ_roistack, [self.rigidOffsets[0][index], self.rigidOffsets[1][index]],
-                                              [self.nonrigidOffsets[0][index:index + 1, :],
-                                               self.nonrigidOffsets[1][index:index + 1, :]],
-                                              self.ref_sess.s2p_ops)
+        self.align_roistack(targ_roistack, [self.rigid_offsets[0][index], self.rigid_offsets[1][index]],
+                            [self.nonrigid_offsets[0][index:index + 1, :],
+                             self.nonrigid_offsets[1][index:index + 1, :]],
+                            self.ref_sess.s2p_ops)
 
         # calculate center of mass of each roi from roistack
         com_ref = get_com_from_roistack(self.ref_roistack)
@@ -111,7 +115,7 @@ class ROIAligner:
         """
 
         # find cells that are in reference match list each time
-        ref_common_rois = reduce((lambda x, y: set(x) & set(y)), self.ref_match_inds)
+        ref_common_rois = reduce((lambda x, y: list(set(x) & set(y))), self.ref_match_inds)
 
         # find matching indices
         common_roi_mapping = {}
@@ -132,8 +136,8 @@ class ROIAligner:
         """
         Align each roi using rigid followed by nonrigid transforms
         :param roistack: np.array, float32, [rois, Ly, Lx], of binary roi masks
-        :param rigidOffsets: list, [y_shift, x_shift] from self.align_mean_images
-        :param nonrigidOffsets: list, [y_shift, x_shift] from self.align_mean_images
+        :param rigid_offsets: list, [y_shift, x_shift] from self.align_mean_images
+        :param nonrigid_offsets: list, [y_shift, x_shift] from self.align_mean_images
         :param ops:
         :return:
         """
@@ -218,14 +222,10 @@ class ROIAligner:
         return matched_ref, matched_targ
 
 
-
-
-
-
 def align_stack(ref_img, frames, ops):
     """
     code stolen from suite2p to apply rigid followed by nonrigid alignment to align frames to ref_img using ops params
-    :param refImg: np.array, [Ly, Lx] reference image
+    :param ref_img: np.array, [Ly, Lx] reference image
     :param frames: np.array. [nframes, Ly, Lx] stack of target images to be aligned
     :param ops: dict, alignment parameters
 
@@ -238,7 +238,7 @@ def align_stack(ref_img, frames, ops):
     rmin, rmax = np.percentile(ref_img, 1), np.percentile(ref_img, 99)
     ref_img = np.clip(ref_img, rmin, rmax).astype(np.float32)
 
-    ### alignment masks
+    # alignment masks
     mask_mul, mask_offset = rigid.compute_masks(
         refImg=ref_img,
         maskSlope=ops['spatial_taper'] if ops['1Preg'] else 3 * ops['smooth_sigma'],
@@ -266,8 +266,6 @@ def align_stack(ref_img, frames, ops):
         )
     ###
 
-
-
     fsmooth = frames.copy().astype(np.float32)
 
     # rigid registration
@@ -283,7 +281,7 @@ def align_stack(ref_img, frames, ops):
     )
     rigidOffsets = [ymax, xmax]
 
-   # apply shifts
+    # apply shifts
     for frame, dy, dx in zip(frames, ymax, xmax):
         frame[:] = rigid.shift_frame(frame=frame, dy=dy, dx=dx)
 
@@ -326,6 +324,7 @@ def align_stack(ref_img, frames, ops):
 
     return frames, rigidOffsets, nonrigidOffsets
 
+
 def make_roistack(stats, ops):
     """
     create rois x Ly x Lx array of roi masks
@@ -339,6 +338,7 @@ def make_roistack(stats, ops):
         roistack[i, roi['ypix'], roi['xpix']] = 1
     return roistack
 
+
 def get_com_from_roistack(roistack):
     """
     get center of mass for each roi in roistack
@@ -351,4 +351,3 @@ def get_com_from_roistack(roistack):
     for ind in range(roistack.shape[0]):
         com[ind, :] = np.argwhere(roistack[ind, :, :]).mean(axis=0)
     return com
-
