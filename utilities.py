@@ -220,3 +220,79 @@ def smooth_raster(x, mat, ax=None, smooth=False, sig=2, vals=None, cmap='cool', 
     ax.set_yticklabels(["%d" % i for i in np.arange(mat.shape[0], 0, -10).tolist()])
 
     return ax
+
+
+def plot_reward_zone(reward_zone, ax=None, plottype=None,
+                     morph0color=(0,0.8,1,0.3),
+                     morph1color=(1,0.1,0.3,0.3),
+                     dreamcolor=(0,1,0.5,0.3),
+                     morph=np.array([]),
+                     dream=np.array([])):
+
+    """
+    plot reward_zone as either shaded area or white lines
+        
+    inputs: reward_zone - trials x [zone_start_pos, zone_end_pos] (pos in cm)
+            ax - matplotlib axis object to use. if none, create a new figure and new axis
+            plottype - 'area' (for smoothed rasters) or 'line' (for imshow-style plots)
+                     - if None, default is 'area'
+            morph0color - color of reward_zone shading on morph0 track (used as default)
+            morph1color - color of reward_zone shading on morph1 track
+            dreamcolor - color of reward_zone shading on DreamLand track
+            morph - trials x 1 array of morph values, expected as binary 1s and 0s
+            dream - trials x 1 array of dream values, expected as binary 1s and 0s
+    outputs: ax - axis of plot object
+
+
+    :param reward_zone:
+    :param ax:
+    :param plottype:
+    :param morph0color:
+    :param morph1color:
+    :param dreamcolor:
+    :param morph:
+    :param dream:
+    :return:
+    """
+    if ax is None:
+        f, ax = plt.subplots()
+        
+    if plottype==None or plottype=='area':
+        # flip reward zone up/down if plotting on smoothed raster
+        plot_reward = np.flipud(reward_zone)
+        morph = np.flipud(morph)
+        dream = np.flipud(dream)
+    else:
+        plot_reward = reward_zone
+    
+    # Find indices where reward zone boundaries change
+    ch_inds = np.array(np.where(np.diff(plot_reward[:,0])!=0))
+    ch_inds = np.append(ch_inds,plot_reward.shape[0]-1)
+    
+    # print(ch_inds)
+    
+    # Iterate through chunks of trials to plot each zone
+    tstart = 0
+    for tend in ch_inds:
+        rstart,rend = plot_reward[tstart,0],plot_reward[tstart,1] # reward zone boundaries
+
+        if plottype=='line':
+            ax.vlines(rstart/10,tstart,tend,colors='white')
+        elif plottype==None or plottype=='area':
+            if sum(morph)!=0 and sum(dream)==0:
+                if int(morph[tstart])==0:
+                    ax.fill_betweenx([tstart,tend],[rstart,rstart],[rend,rend],color=morph0color)
+                elif int(morph[tstart])==1:
+                    ax.fill_betweenx([tstart,tend],[rstart,rstart],[rend,rend],color=morph1color)
+            elif sum(morph)!=0 and sum(dream)!=0:
+                if int(dream[tstart])==1:
+                    ax.fill_betweenx([tstart,tend],[rstart,rstart],[rend,rend],color=dreamcolor)
+                elif int(dream[tstart])==0 and int(morph[tstart])==1:
+                    ax.fill_betweenx([tstart,tend],[rstart,rstart],[rend,rend],color=morph1color)
+                elif int(dream[tstart])==0 and int(morph[tstart])==0:
+                    ax.fill_betweenx([tstart,tend],[rstart,rstart],[rend,rend],color=morph0color)
+            else:
+                ax.fill_betweenx([tstart,tend],[rstart,rstart],[rend,rend],color=morph0color)
+        tstart = tend + 1
+    
+    return ax
