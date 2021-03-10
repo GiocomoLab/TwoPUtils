@@ -82,7 +82,7 @@ class SessionInfo:
         self.vr_filename = None  # string, path to vr sqlite file
         self.s2p_path = None  # string, suite2p path
         self.n_planes = 1  # int, number of imaging planes
-        self.prompt_for_keys = True  # bool, whether or not to run through prompts for minimal keys
+        self.prompt_for_keys = False  # bool, whether or not to run through prompts for minimal keys
 
         self.__dict__.update(kwargs)  # update keys based on inputs
         # if want to receive prompts for minimal keys
@@ -365,14 +365,16 @@ class Session(SessionInfo, ABC):
             print("multiple planes functionality not added in yet, assuming 1 plane")
         else:
             self.s2p_ops = np.load(os.path.join(self.s2p_path, 'plane0', 'ops.npy'), allow_pickle=True).all()
-            try:
-                self.s2p_stats = np.load(os.path.join(self.s2p_path, 'plane0', 'stats.npy'), allow_pickle=True)
-            except:
-                self.s2p_stats = np.load(os.path.join(self.s2p_path, 'plane0', 'stat.npy'), allow_pickle=True)
+
             if custom_iscell in (None, False):
                 self.iscell = np.load(os.path.join(self.s2p_path, 'plane0', 'iscell.npy'))
             else:
                 self.iscell = np.load(custom_iscell)
+
+            try:
+                self.s2p_stats = np.load(os.path.join(self.s2p_path, 'plane0', 'stats.npy'), allow_pickle=True)[self.iscell[:,0]>0]
+            except:
+                self.s2p_stats = np.load(os.path.join(self.s2p_path, 'plane0', 'stat.npy'), allow_pickle=True)[self.iscell[:,0]>0]
 
             ts_to_pull = {}
             for ts in which_ts:

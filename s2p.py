@@ -63,7 +63,7 @@ def default_ops():
         'connected': True,  # whether or not to keep ROIs fully connected (set to 0 for dendrites)
         'nbinned': 5000,  # max number of binned frames for cell detection
         'max_iterations': 20,  # maximum number of iterations to do cell detection
-        'threshold_scaling': 1.5,  # adjust the automatically determined threshold by this scalar multiplier
+        'threshold_scaling': 1.,  # adjust the automatically determined threshold by this scalar multiplier
         'max_overlap': 0.75,  # cells with more overlap than this get removed during triage, before refinement
         'high_pass': 100,  # running mean subtraction with window of size 'high_pass' (use low values for 1P)
         # ROI extraction parameters
