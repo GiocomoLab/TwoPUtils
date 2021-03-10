@@ -123,7 +123,6 @@ class ROIAligner:
         # find matching indices
         common_roi_mapping = {}
         for i, roi in enumerate(ref_common_rois):
-            print(i, roi)
             common_roi_mapping[roi] = []
             for j, (ref_list, targ_list) in enumerate(zip(self.ref_match_inds, self.targ_match_inds)):
                 print(j)
