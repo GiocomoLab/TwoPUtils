@@ -125,7 +125,7 @@ class ROIAligner:
         for i, roi in enumerate(ref_common_rois):
             print(i, roi)
             common_roi_mapping[roi] = []
-            for j, (ref_list, targ_list) in enumerate(zip(sa.ref_match_inds, sa.targ_match_inds)):
+            for j, (ref_list, targ_list) in enumerate(zip(self.ref_match_inds, self.targ_match_inds)):
                 print(j)
                 ind = np.argwhere(ref_list == roi)[0]
                 assert ind.shape[0] == 1, "duplicate matched rois somewhere"
