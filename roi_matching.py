@@ -353,3 +353,30 @@ def get_com_from_roistack(roistack):
     for ind in range(roistack.shape[0]):
         com[ind, :] = np.argwhere(roistack[ind, :, :]).mean(axis=0)
     return com
+
+def plot_roi_matches():
+    for ref_cell, targ_cells in sa.common_rois_all_sessions.items():
+        fig,ax = plt.subplots(3,3,figsize=[15,15])
+        fig.suptitle("cell %d" % ref_cell)
+        ref_com = [sa.ref_sess.s2p_stats[ref_cell]['ypix'].mean(), sa.ref_sess.s2p_stats[ref_cell]['xpix'].mean()]
+    
+        ybounds = [int(max(0,ref_com[0]-50)), int(min(512,ref_com[0]+50))]
+        xbounds = [int(max(0,ref_com[1]-50)), int(min(796,ref_com[1]+50))]
+    
+        ax[0,0].imshow(sa.ref_sess.s2p_ops['meanImg'][ybounds[0]:ybounds[1],xbounds[0]:xbounds[1]],cmap='Greys_r')
+        roi = np.zeros([512,796])*np.nan
+        roi[sa.ref_sess.s2p_stats[ref_cell]['ypix'], sa.ref_sess.s2p_stats[ref_cell]['xpix']]=1
+        ax[0,0].imshow(roi[ybounds[0]:ybounds[1],xbounds[0]:xbounds[1]],alpha=.3)
+    
+        for i, (sess, targ_cell) in enumerate(zip(sa.targ_sess,targ_cells)):
+            plot_ind = np.unravel_index(i+1,[3,3])
+    
+            targ_com = [sess.s2p_stats[targ_cell]['ypix'].mean(), sess.s2p_stats[targ_cell]['xpix'].mean()]
+    
+            ybounds = [int(max(0,targ_com[0]-50)), int(min(512,targ_com[0]+50))]
+            xbounds = [int(max(0,targ_com[1]-50)), int(min(796,targ_com[1]+50))]
+    
+            ax[plot_ind].imshow(sess.s2p_ops['meanImg'][ybounds[0]:ybounds[1],xbounds[0]:xbounds[1]],cmap='Greys_r')
+            roi = np.zeros([512,796])*np.nan
+            roi[sess.s2p_stats[targ_cell]['ypix'], sess.s2p_stats[targ_cell]['xpix']]=1
+            ax[plot_ind].imshow(roi[ybounds[0]:ybounds[1],xbounds[0]:xbounds[1]],alpha=.3)
