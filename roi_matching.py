@@ -70,11 +70,13 @@ class ROIAligner:
         self.frames, self.rigid_offsets, self.nonrigid_offsets = align_stack(
             self.ref_sess.s2p_ops['meanImg'], self.frames, reg_ops)
 
-    def match_session_pair(self, index):
+    def match_session_pair(self, index, thresh = None):
         """
         Find matching ROI pairs for ref_sess and targ_sess[index]
 
-        :param index: which target session to align
+
+        :param index: int, which target session to align
+        :param thresh: float, iou threshold to run matching
         :return:
         """
 
@@ -100,7 +102,8 @@ class ROIAligner:
         iou = self.iou(self.ref_roistack, targ_roistack, candidates)
 
         # calculate iou threshold
-        thresh = self.set_iou_threshold(iou)
+        if thresh is None:
+            thresh = self.set_iou_threshold(iou)
 
         # get matched rois
         ref_match_inds, targ_match_inds = self.get_matches(iou, thresh)
