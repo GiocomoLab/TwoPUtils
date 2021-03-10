@@ -67,7 +67,7 @@ class ROIAligner:
         # get mean images
         self.frames = np.array([s.s2p_ops['meanImg'] for s in self.targ_sess]).astype(np.float32)
         # align them
-        self.frames, self.rigid_offsets, self.nonrigid_offsets = TwoPUtils.roi_matching.align_stack(
+        self.frames, self.rigid_offsets, self.nonrigid_offsets = align_stack(
             self.ref_sess.s2p_ops['meanImg'], self.frames, reg_ops)
 
     def match_session_pair(self, index):
