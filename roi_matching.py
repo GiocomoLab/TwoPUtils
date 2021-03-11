@@ -37,6 +37,7 @@ class ROIAligner:
         # allocate
         self.ref_match_inds = [[]] * len(self.targ_sess)
         self.targ_match_inds = [[]] * len(self.targ_sess)
+        self.mat_ious = [[]] * len(self.targ_sess)
         self.frames = None
         self.rigid_offsets = None
         self.nonrigid_offsets = None
@@ -44,14 +45,14 @@ class ROIAligner:
         # align targ_sess mean images to ref_sess mean image
         self.align_mean_images()
 
-    def run_pairwise_matches(self):
+    def run_pairwise_matches(self, thresh=None):
         """
         calculate matched ROIs for ref_sess vs each targ_sess
         :return:
         """
 
         for i in range(len(self.targ_sess)):
-            self.match_session_pair(i)
+            self.match_session_pair(i,thresh=thresh)
 
     def align_mean_images(self, **ops_kwargs):
         """
@@ -70,7 +71,7 @@ class ROIAligner:
         self.frames, self.rigid_offsets, self.nonrigid_offsets = align_stack(
             self.ref_sess.s2p_ops['meanImg'], self.frames, reg_ops)
 
-    def match_session_pair(self, index, thresh = None):
+    def match_session_pair(self, index, thresh=None):
         """
         Find matching ROI pairs for ref_sess and targ_sess[index]
 
@@ -106,8 +107,8 @@ class ROIAligner:
             thresh = self.set_iou_threshold(iou)
 
         # get matched rois
-        ref_match_inds, targ_match_inds = self.get_matches(iou, thresh)
-        self.ref_match_inds[index], self.targ_match_inds[index] = ref_match_inds, targ_match_inds
+        ref_match_inds, targ_match_inds, iou_match = self.get_matches(iou, thresh)
+        self.ref_match_inds[index], self.targ_match_inds[index], self.mat_ious[index] = ref_match_inds, targ_match_inds, iou_match
 
     @property
     def common_rois_all_sessions(self):
@@ -118,14 +119,13 @@ class ROIAligner:
         """
 
         # find cells that are in reference match list each time
-        ref_common_rois = reduce((lambda x, y: list(set(x) & set(y))), self.ref_match_inds)
+        ref_common_rois = reduce((lambda x, y: set(x) & set(y)), self.ref_match_inds)
 
         # find matching indices
         common_roi_mapping = {}
         for i, roi in enumerate(ref_common_rois):
             common_roi_mapping[roi] = []
             for j, (ref_list, targ_list) in enumerate(zip(self.ref_match_inds, self.targ_match_inds)):
-                print(j)
                 ind = np.argwhere(ref_list == roi)[0]
                 assert ind.shape[0] == 1, "duplicate matched rois somewhere"
 
@@ -197,6 +197,7 @@ class ROIAligner:
         # find max again (2nd largest value per row)
         # set thresh to this number
         thresh = np.amax(_iou) + 1E-3
+        print("thresh", thresh)
         return thresh
 
     @staticmethod
@@ -212,16 +213,20 @@ class ROIAligner:
 
         # sort iou's
         row_sort, col_sort = np.unravel_index(np.argsort(iou, axis=None), iou.shape)
-        matched_ref, matched_targ = [], []
+        matched_ref, matched_targ, matched_iou = [], [], []
 
         # starting with highest overlap
         for i, j in zip(row_sort[::-1], col_sort[::-1]):
             # if not previously matched and iou>thresh
             if (i not in matched_ref) and (j not in matched_targ) and (iou[i, j] > thresh):
-                matched_ref.append(i)
-                matched_targ.append(j)
+                if np.argmax(iou[i, :]) == j:
+                    matched_ref.append(i)
+                    matched_targ.append(j)
+                    matched_iou.append(iou[i, j])
+                else:
+                    print("skipping roi")
 
-        return matched_ref, matched_targ
+        return matched_ref, matched_targ, matched_iou
 
 
 def align_stack(ref_img, frames, ops):
