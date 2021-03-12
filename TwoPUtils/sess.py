@@ -6,9 +6,9 @@ from glob import glob
 import dill
 import numpy as np
 
-#from .scanner_tools import sbx_utils
+from .scanner_tools import sbx_utils
 from . import preprocessing as pp
-#from . import spatial_analyses
+from . import spatial_analyses
 
 
 def save_session(obj, output_basedir):
