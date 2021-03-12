@@ -3,7 +3,7 @@ from random import randrange
 import numpy as np
 import scipy as sp
 
-import utilities as u
+#import utilities as u
 
 
 def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
