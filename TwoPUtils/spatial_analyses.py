@@ -78,7 +78,7 @@ def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
             else:
                 nan_inds = np.isnan(_trial_mat[:])
                 _trial_mat[nan_inds] = np.nanmean(_trial_mat, axis=0, keepdims=True)
-                trial_mat[trial, :] = _trial_mat
+                trial_mat[trial, :] = _trial_mat[:,np.newaxis]
 
 
 
