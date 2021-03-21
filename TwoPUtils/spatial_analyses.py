@@ -71,7 +71,10 @@ def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
         # while np.isnan(trial_mat).sum()>0:
         for trial in range(trial_mat.shape[0]):
             _trial_mat = np.squeeze(trial_mat[trial,:,:])
-            nan_inds = np.isnan(_trial_mat[:,0])
+            if len(_trial_mat)>1:
+                nan_inds = np.isnan(_trial_mat[:,0])
+            else:
+                nan_inds = np.isnan(_trial_mat[:])
             _trial_mat[nan_inds,:] = np.nanmean(_trial_mat,axis=0,keepdims=True)
             trial_mat[trial,:,:]=_trial_mat
 
