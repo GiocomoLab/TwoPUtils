@@ -359,7 +359,7 @@ class Session(SessionInfo, ABC):
         else:
             print("VR data already set or overwrite=False")
 
-    def load_suite2p_data(self, which_ts=('F', 'Fneu', 'S', 'F_chan2', 'Fneu_chan2'), custom_iscell=None):
+    def load_suite2p_data(self, which_ts=('F', 'Fneu', 'spks', 'F_chan2', 'Fneu_chan2'), custom_iscell=None):
 
         if self.n_planes > 1:
             print("multiple planes functionality not added in yet, assuming 1 plane")
