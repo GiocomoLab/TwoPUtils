@@ -125,7 +125,7 @@ def dff(C, sig_baseline=10, win_baseline=300, sig_output=3, method='maximin'):
         flow = None
         raise NotImplementedError
 
-    # C -= flow  # substract baseline (dF)
+    C -= flow  # substract baseline (dF)
     C /= flow  # divide by baseline (dF/F)
     return filters.gaussian_filter(C, [sig_output, 0])  # smooth result
 
