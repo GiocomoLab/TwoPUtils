@@ -106,8 +106,8 @@ def nansmooth(a, sig):
 def dff(C, sig_baseline=10, win_baseline=300, sig_output=3, method='maximin'):
     """
     delta F / F using maximin method from Suite2P
-    inputs: C - neuropil subtracted fluorescence (timepoints x neurons)
-    outputs dFF - timepoints x neurons
+    inputs: C - neuropil subtracted fluorescence (neurons x timepoints)
+    outputs dFF -  neurons x timepoints
 
     :param C:
     :param sig_baseline:
@@ -118,16 +118,16 @@ def dff(C, sig_baseline=10, win_baseline=300, sig_output=3, method='maximin'):
     """
 
     if method == 'maximin':  # windowed baseline estimation
-        flow = filters.gaussian_filter(C, [sig_baseline, 0])
-        flow = filters.minimum_filter1d(flow, win_baseline, axis=0)
-        flow = filters.maximum_filter1d(flow, win_baseline, axis=0)
+        flow = filters.gaussian_filter(C, [0, sig_baseline])
+        flow = filters.minimum_filter1d(flow, win_baseline, axis=1)
+        flow = filters.maximum_filter1d(flow, win_baseline, axis=1)
     else:
         flow = None
         raise NotImplementedError
 
     C -= flow  # substract baseline (dF)
     C /= flow  # divide by baseline (dF/F)
-    return filters.gaussian_filter(C, [sig_output, 0])  # smooth result
+    return filters.gaussian_filter(C, [0, sig_output])  # smooth result
 
 
 def correct_trial_mask(rewards, starts, stops, N):
