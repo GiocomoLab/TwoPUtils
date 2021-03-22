@@ -145,7 +145,9 @@ def place_cells_calc(C, position, tstart_inds,
         if perm%100 == 0:
             print('perm',perm)
         C_trial_mat, occ_trial_mat, _,__ = trial_matrix(C,position,tstart_inds,teleport_inds,speed = speed,perm=True,**kwargs)
-        _SI_perm =  spatinfo_per_morph(C_trial_mat,occ_trial_mat)
+        occ = occ_trial_mat.sum(axis=0) + 1E-3
+        occ /= occ.sum()
+        _SI_perm =  spatial_info(np.nanmean(C_trial_mat,axis=0),occ)
 
         SI_perms[perm,:]=_SI_perm
 
