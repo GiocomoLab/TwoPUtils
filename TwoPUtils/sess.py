@@ -384,7 +384,7 @@ class Session(SessionInfo, ABC):
                 ts_path = os.path.join(self.s2p_path, 'plane0', "%s.npy" % ts)
                 if os.path.exists(ts_path):
                     ts_to_pull[ts] = ts_path
-            self.add_timeseries_from_file(**ts_to_pull)
+            self.add_timeseries_from_file(frames = frames, **ts_to_pull)
             for ts_name in ts_to_pull.keys():
                 self.timeseries[ts_name] = self.timeseries[ts_name][self.iscell[:, 0] > 0, frames]
 
@@ -401,8 +401,8 @@ class Session(SessionInfo, ABC):
 
             self.timeseries[k] = v
 
-    def add_timeseries_from_file(self, **kwargs):
-        self.add_timeseries(**{key: np.load(path) for key, path in kwargs.items()})
+    def add_timeseries_from_file(self,frames = None **kwargs):
+        self.add_timeseries(frames = frames, **{key: np.load(path) for key, path in kwargs.items()})
 
     def add_pos_binned_trial_matrix(self, ts_name, pos_key, **trial_matrix_kwargs):
         """
