@@ -359,12 +359,15 @@ class Session(SessionInfo, ABC):
         else:
             print("VR data already set or overwrite=False")
 
-    def load_suite2p_data(self, which_ts=('F', 'Fneu', 'spks', 'F_chan2', 'Fneu_chan2'), custom_iscell=None):
+    def load_suite2p_data(self, which_ts=('F', 'Fneu', 'spks', 'F_chan2', 'Fneu_chan2'), custom_iscell=None, frames = None):
 
         if self.n_planes > 1:
             print("multiple planes functionality not added in yet, assuming 1 plane")
         else:
             self.s2p_ops = np.load(os.path.join(self.s2p_path, 'plane0', 'ops.npy'), allow_pickle=True).all()
+
+            if frames is None:
+                frames = slice(0, self.s2p_ops['nframes'])
 
             if custom_iscell in (None, False):
                 self.iscell = np.load(os.path.join(self.s2p_path, 'plane0', 'iscell.npy'))
@@ -383,7 +386,7 @@ class Session(SessionInfo, ABC):
                     ts_to_pull[ts] = ts_path
             self.add_timeseries_from_file(**ts_to_pull)
             for ts_name in ts_to_pull.keys():
-                self.timeseries[ts_name] = self.timeseries[ts_name][self.iscell[:, 0] > 0, :]
+                self.timeseries[ts_name] = self.timeseries[ts_name][self.iscell[:, 0] > 0, frames]
 
     def add_timeseries(self, **kwargs):
         for k, v in kwargs.items():
