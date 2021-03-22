@@ -131,10 +131,17 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False):
 
     if 'frame' in scan_info.keys() and 'line' in scan_info.keys():
         frames = np.array([f * scan_info['fov_repeats'] for f in scan_info['frame']])
-        lines = np.array([l % scan_info['fold_lines'] for l in scan_info['line']])
+        if scan_info['fold_lines']>0:
+            lines = np.array([l % scan_info['fold_lines'] for l in scan_info['line']])
+        else:
+            lines = np.array(scan_info['line'])
     else:
         frames = np.array([f * scan_info['fov_repeats'] for f in scan_info['frames']])
-        lines = np.array([l % scan_info['fold_lines'] for l in scan_info['lines']])
+        # lines = np.array([l % scan_info['fold_lines'] for l in scan_info['lines']])
+        if scan_info['fold_lines']>0:
+            lines = np.array([l % scan_info['fold_lines'] for l in scan_info['lines']])
+        else:
+            lines = np.array(scan_info['lines'])
     # try:
     #     frames = np.array([f*scan_info['fov_repeats'] for f in scan_info['frames']])
     #     lines = np.array([l%scan_info['fold_lines'] for l in scan_info['lines']])
