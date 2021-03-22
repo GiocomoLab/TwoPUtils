@@ -182,7 +182,7 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False):
 
     # nearest frame interpolation
     near_interp_cols = column_filter(('morph', 'towerJitter', 'wallJitter',
-                                      'bckgndJitter','trialnum','cmd','scanning','dreamland'))
+                                      'bckgndJitter','trialnum','cmd','scanning','dreamland', 'LR'))
 
     f_nearest = sp.interpolate.interp1d(ttl_times, vr_dataframe[near_interp_cols]._values, axis=0, kind='nearest')
     ca_df.loc[mask, near_interp_cols] = f_nearest(ca_time[mask])
