@@ -216,6 +216,10 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False):
         if ca_df['teleport'].sum(axis=0) - ca_df['tstart'].sum(axis=0) == 1:
             warnings.warn(("One more teleport and than trial start, Assuming the first trial start got clipped during "))
             ca_df['tstart'].iloc[0]=1
+
+        if ca_df['teleport'].sum(axis=0) - ca_df['tstart'].sum(axis=0) == -1:
+            warnings.warn(('One more trial start than teleport, assuming the final teleport got chopped'))
+            ca_df['teleport'].iloc[-1]=1
     # smooth instantaneous speed
 
     cum_dz = sp.ndimage.filters.gaussian_filter1d(np.cumsum(ca_df['dz']._values), 5)

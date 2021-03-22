@@ -319,21 +319,21 @@ class Session(SessionInfo, ABC):
                 if not attr.startswith('__') and not callable(getattr(pkl_sess, attr)):
                     setattr(self, attr, getattr(pkl_sess, attr))
 
-    def _check_for_pickled_session(self):
-        if hasattr(self, 'pickle_dir'):
-            pklfile = os.path.join(self.pickle_dir, self.mouse,
-                                   self.date,
-                                   "%s_%d.pkl" % (self.scene, self.session))
-
-        else:
-            print("SessionInfo class instance has no attribute 'pickle_dir'. \n",
-                  "Checking current working directory for pickled session")
-            pklfile = os.path.join(os.getcwd(), self.mouse,
-                                   self.date,
-                                   "%s_%d.pkl" % (self.scene, self.session))
-
-        assert os.path.exists(pklfile), "%s does not exist" % pklfile
-        return pklfile
+    # def _check_for_pickled_session(self):
+    #     if hasattr(self, 'pickle_dir'):
+    #         pklfile = os.path.join(self.pickle_dir, self.mouse,
+    #                                self.date,
+    #                                "%s_%d.pkl" % (self.scene, self.session))
+    # 
+    #     else:
+    #         print("SessionInfo class instance has no attribute 'pickle_dir'. \n",
+    #               "Checking current working directory for pickled session")
+    #         pklfile = os.path.join(os.getcwd(), self.mouse,
+    #                                self.date,
+    #                                "%s_%d.pkl" % (self.scene, self.session))
+    # 
+    #     assert os.path.exists(pklfile), "%s does not exist" % pklfile
+    #     return pklfile
 
     def load_scan_info(self):
         if self.scanner == "NLW":
