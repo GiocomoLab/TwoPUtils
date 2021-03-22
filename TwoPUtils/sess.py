@@ -386,7 +386,7 @@ class Session(SessionInfo, ABC):
                     ts_to_pull[ts] = ts_path
             self.add_timeseries_from_file(frames = frames, **ts_to_pull)
             for ts_name in ts_to_pull.keys():
-                self.timeseries[ts_name] = self.timeseries[ts_name][self.iscell[:, 0] > 0, frames]
+                self.timeseries[ts_name] = self.timeseries[ts_name][self.iscell[:, 0] > 0, :]
 
     def add_timeseries(self, frames = None, **kwargs):
         for k, v in kwargs.items():
