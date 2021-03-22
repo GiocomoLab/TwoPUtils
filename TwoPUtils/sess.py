@@ -415,3 +415,15 @@ class Session(SessionInfo, ABC):
                 _check_and_add_key(_ts)
         else:
             _check_and_add_key(ts_name)
+
+    def rm_timeseries(self,ts_name):
+        if not isinstance(ts_name,list) or not isinstance(ts_name,tuple):
+            ts_name = [ts_name]
+        _ = [self.timeseries.pop(_ts,None) for _ts in ts_name]
+
+
+    def rm_pos_binned_trial_matrix(self,keys):
+        if not isinstance(keys,list) or not isinstance(keys,tuple):
+            keys = [keys]
+        _ = [self.trial_matrices.pop(_k,None) for _k in keys]
+
