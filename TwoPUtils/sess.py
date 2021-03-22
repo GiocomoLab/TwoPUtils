@@ -401,7 +401,7 @@ class Session(SessionInfo, ABC):
 
             self.timeseries[k] = v
 
-    def add_timeseries_from_file(self,frames = None **kwargs):
+    def add_timeseries_from_file(self,frames = None, **kwargs):
         self.add_timeseries(frames = frames, **{key: np.load(path) for key, path in kwargs.items()})
 
     def add_pos_binned_trial_matrix(self, ts_name, pos_key, **trial_matrix_kwargs):
