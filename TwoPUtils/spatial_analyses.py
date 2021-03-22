@@ -8,7 +8,7 @@ from . import utilities as u
 
 def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
                  max_pos=450, speed=None, speed_thr=2, perm=False,
-                 mat_only=False, impute_nans = True):
+                 mat_only=False, impute_nans = False):
     """
 
     :param arr: timepoints x anything array to be put into trials x positions format
