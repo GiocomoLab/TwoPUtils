@@ -16,7 +16,7 @@ class ROIAligner:
     each session already.
     """
 
-    def __init__(self, ref_sess, targ_sess):
+    def __init__(self, sess_list):
         """
 
 
@@ -24,26 +24,29 @@ class ROIAligner:
         :param targ_sess: (list or tuple of) TwoPUtils.sess.Session instance(s) for the sessions that will be aligned
         """
 
-        self.ref_sess = ref_sess
+        self.sess_list = sess_list
         # make targ_sess iterable if not
-        if isinstance(targ_sess, list) or isinstance(targ_sess, tuple):
-            self.targ_sess = targ_sess
-        else:
-            self.targ_sess = tuple(targ_sess)
+        # if isinstance(targ_sess, list) or isinstance(targ_sess, tuple):
+        #     self.targ_sess = targ_sess
+        # else:
+        #     self.targ_sess = tuple(targ_sess)
 
         # roi x Ly x Lx matrix of ROI masks
-        self.ref_roistack = make_roistack(self.ref_sess.s2p_stats, self.ref_sess.s2p_ops)
-
+        # self.ref_roistack = make_roistack(self.ref_sess.s2p_stats, self.ref_sess.s2p_ops)
+        self.ref_roistack = None
+        # self.reg_ops = reg_ops
         # allocate
-        self.ref_match_inds = [[]] * len(self.targ_sess)
-        self.targ_match_inds = [[]] * len(self.targ_sess)
-        self.mat_ious = [[]] * len(self.targ_sess)
+        # self.ref_match_inds = [[]] * len(self.targ_sess)
+        # self.targ_match_inds = [[]] * len(self.targ_sess)
+        self.match_inds = {}
+        self.match_ious = {}
+        # self.mat_ious = [[]] * len(self.targ_sess)
         self.frames = None
         self.rigid_offsets = None
         self.nonrigid_offsets = None
 
         # align targ_sess mean images to ref_sess mean image
-        self.align_mean_images()
+        # self.align_mean_images(ref_img,reg_ops)
 
     def run_pairwise_matches(self, thresh=None):
         """
@@ -51,25 +54,33 @@ class ROIAligner:
         :return:
         """
 
-        for i in range(len(self.targ_sess)):
-            self.match_session_pair(i,thresh=thresh)
 
-    def align_mean_images(self, **ops_kwargs):
+
+        for ref_ind in range(len(self.sess_list)):
+            self.ref_roistack = make_roistack(self.sess_list[ref_ind].s2p_stats, self.sess_list[ref_ind].s2p_ops)
+            # align targ_sess mean images to ref_sess mean image
+            self.reg_ops = self.sess_list[ref_ind].s2p_ops
+            self.align_mean_images(self.sess_list[ref_ind].s2p_ops['meanImg'], self.sess_list[ref_ind].s2p_ops)
+            targ_inds = [i for i in range(len(self.sess_list)) if i not in [ref_ind]]
+            self.match_inds[ref_ind] = {}
+            for targ_ind in targ_inds:
+                ref_match_inds, targ_match_inds, iou_match = self.match_session_pair(targ_ind,thresh=thresh)
+                self.match_inds[ref_ind][targ_ind] = {'ref_inds': ref_match_inds, 'targ_inds': targ_match_inds, 'iou': iou_match}
+
+
+
+    def align_mean_images(self, ref_img, reg_ops):
         """
         Align targ_sess mean images to ref_sess mean image
         :param ops_kwargs: optional registration arguments, default is to use ref_sess.s2p_ops alignment parameters
         :return:
         """
 
-        # update ops
-        reg_ops = self.ref_sess.s2p_ops
-        reg_ops.update(ops_kwargs)
-
         # get mean images
-        self.frames = np.array([s.s2p_ops['meanImg'] for s in self.targ_sess]).astype(np.float32)
+        self.frames = np.array([s.s2p_ops['meanImg'] for s in self.sess_list]).astype(np.float32)
         # align them
         self.frames, self.rigid_offsets, self.nonrigid_offsets = align_stack(
-            self.ref_sess.s2p_ops['meanImg'], self.frames, reg_ops)
+            ref_img, self.frames, reg_ops)
 
     def match_session_pair(self, index, thresh=None):
         """
@@ -82,14 +93,14 @@ class ROIAligner:
         """
 
         # make roi x Ly x Lx array of masks
-        targ_roistack = make_roistack(self.targ_sess[index].s2p_stats,
-                                      self.targ_sess[index].s2p_ops)
+        targ_roistack = make_roistack(self.sess_list[index].s2p_stats,
+                                      self.sess_list[index].s2p_ops)
 
         # apply alignment transform to roi masks
         self.align_roistack(targ_roistack, [self.rigid_offsets[0][index], self.rigid_offsets[1][index]],
                             [self.nonrigid_offsets[0][index:index + 1, :],
                              self.nonrigid_offsets[1][index:index + 1, :]],
-                            self.ref_sess.s2p_ops)
+                            self.reg_ops)
 
         # calculate center of mass of each roi from roistack
         com_ref = get_com_from_roistack(self.ref_roistack)
@@ -108,7 +119,8 @@ class ROIAligner:
 
         # get matched rois
         ref_match_inds, targ_match_inds, iou_match = self.get_matches(iou, thresh)
-        self.ref_match_inds[index], self.targ_match_inds[index], self.mat_ious[index] = ref_match_inds, targ_match_inds, iou_match
+        return ref_match_inds, targ_match_inds, iou_match
+        # self.ref_match_inds[index], self.targ_match_inds[index], self.mat_ious[index] = ref_match_inds, targ_match_inds, iou_match
 
     @property
     def common_rois_all_sessions(self):
