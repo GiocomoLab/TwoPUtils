@@ -3,6 +3,8 @@ from random import randrange
 import numpy as np
 import scipy as sp
 
+# from sklearn.impute import KNNImputer
+
 #import utilities as u
 from . import utilities as u
 
@@ -67,17 +69,22 @@ def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
                 pass
 
     if impute_nans:
+        knn_imp = KNNImputer(n_neighbors=2)
 
         # while np.isnan(trial_mat).sum()>0:
         for trial in range(trial_mat.shape[0]):
             _trial_mat = np.squeeze(trial_mat[trial,:,:])
             if len(_trial_mat.shape)>1:
-                nan_inds = np.isnan(_trial_mat[:,0])
-                _trial_mat[nan_inds, :] = np.nanmean(_trial_mat, axis=0, keepdims=True)
+                while np.isnan(_trial_mat[:,0].sum())>0:
+                    nan_inds = np.where(np.isnan(_trial_mat[:,0]))[0]
+                    _trial_mat[nan_inds,:] = _trial_mat[nan_inds-1,:]
+                # _trial_mat = knn_imp.fit_transform(_trial_mat)
+                # _trial_mat[nan_inds, :] = np.nanmean(_trial_mat, axis=0, keepdims=True)
                 trial_mat[trial, :, :] = _trial_mat
             else:
-                nan_inds = np.isnan(_trial_mat[:])
-                _trial_mat[nan_inds] = np.nanmean(_trial_mat, axis=0, keepdims=True)
+                # nan_inds = np.isnan(_trial_mat[:])
+                # _trial_mat[nan_inds] = np.nanmean(_trial_mat, axis=0, keepdims=True)
+                _trial_mat = knn_imp.fit_transform(_trial_mat[:,np.newaxis])
                 trial_mat[trial, :] = _trial_mat[:,np.newaxis]
 
 
