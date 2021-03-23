@@ -69,7 +69,7 @@ def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
                 pass
 
     if impute_nans:
-        
+
 
         # while np.isnan(trial_mat).sum()>0:
         for trial in range(trial_mat.shape[0]):
@@ -103,8 +103,8 @@ def spatial_info(frmap,occupancy):
 
     ### vectorizing
     P_map = frmap - np.amin(frmap)+.001 # make sure there's no negative activity rates
-    P_map = P_map/P_map.mean(axis=0,keepdims=True)
-    SI = ((P_map*occupancy[:,np.newaxis])*np.log2(P_map)).sum(axis=0) # Skaggs and McNaughton spatial information
+    P_map = P_map/np.nanmean(P_map, axis=0,keepdims=True)
+    SI = np.nansum((P_map*occupancy[:,np.newaxis])*np.log2(P_map), axis=0) # Skaggs and McNaughton spatial information
 
     return SI
 
