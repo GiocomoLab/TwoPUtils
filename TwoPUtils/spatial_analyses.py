@@ -69,7 +69,7 @@ def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
                 pass
 
     if impute_nans:
-        knn_imp = KNNImputer(n_neighbors=2)
+        
 
         # while np.isnan(trial_mat).sum()>0:
         for trial in range(trial_mat.shape[0]):
