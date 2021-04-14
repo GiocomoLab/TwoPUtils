@@ -83,6 +83,7 @@ class SessionInfo:
         self.s2p_path = None  # string, suite2p path
         self.n_planes = 1  # int, number of imaging planes
         self.prompt_for_keys = False  # bool, whether or not to run through prompts for minimal keys
+        self.verbose = True
 
         self.__dict__.update(kwargs)  # update keys based on inputs
         # if want to receive prompts for minimal keys
@@ -203,7 +204,8 @@ class SessionInfo:
                 pass
         else:
             if not os.path.exists(self.vr_filename):
-                warnings.warn("VR File does not exist!", self.vr_filename)
+                if self.verbose:
+                    warnings.warn("VR File does not exist!", self.vr_filename)
 
     def _check_for_2P_data(self):
         """
@@ -220,7 +222,8 @@ class SessionInfo:
                                                     self.scene,
                                                     "%s_%03d_%03d.mat" % (self.scene, self.session, self.scan_number))
             if not os.path.exists(self.scanheader_file):
-                warnings.warn("Could not find sbxmat file at %s" % self.scanheader_file)
+                if self.verbose:
+                    warnings.warn("Could not find sbxmat file at %s" % self.scanheader_file)
 
 
             if self.scan_file is None:
@@ -228,8 +231,9 @@ class SessionInfo:
                                               self.scene,
                                               "%s_%03d_%03d.sbx" % (self.scene, self.session, self.scan_number))
             if not os.path.exists(self.scan_file):
-                warnings.warn("Could not find sbx file at %s" % self.scan_file)
-                
+                if self.verbose:
+                    warnings.warn("Could not find sbx file at %s" % self.scan_file)
+
 
         elif self.scanner == "ThorLabs":
             raise NotImplementedError
@@ -247,7 +251,8 @@ class SessionInfo:
             base, _ = os.path.splitext(self.scanheader_file)
             self.s2p_path = os.path.join(base, 'suite2p')
             if not os.path.exists(self.s2p_path):
-                warnings.warn("Could not find suite2p path at %s" % self.s2p_path)
+                if self.verbose:
+                    warnings.warn("Could not find suite2p path at %s" % self.s2p_path)
             else:
                 self.n_planes = len(glob(os.path.join(self.s2p_path, 'plane*')))
 
