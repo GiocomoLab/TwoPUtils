@@ -300,13 +300,15 @@ class Session(SessionInfo, ABC):
         self.s2p_ops = None
         self.s2p_stats = None
 
+        # check for pickled instance of Session class
+        if pickled_file is not None:
+            self.load_pickled_session()
+
         # self.__dict__.update(kwargs)  # update keys based on inputs - might not need this line/called through super
         # inheritance
         super(Session, self).__init__(**kwargs)
 
-        # check for pickled instance of Session class
-        if pickled_file is not None:
-            self.load_pickled_session()
+
 
     def load_pickled_session(self):
         '''
