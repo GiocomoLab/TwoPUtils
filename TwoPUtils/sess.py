@@ -262,7 +262,7 @@ class Session(SessionInfo, ABC):
     Extension of SessionInfo class that contains behavioral data and neural data
     """
 
-    def __init__(self, pickled_file=None, **kwargs):
+    def __init__(self,  **kwargs):
         """
 
         :param load_pickled_sess: bool, look for and load previous instance of session in pickle_dir
@@ -300,28 +300,24 @@ class Session(SessionInfo, ABC):
         self.s2p_ops = None
         self.s2p_stats = None
 
-        # check for pickled instance of Session class
-        if pickled_file is not None:
-            self.load_pickled_session()
-
         # self.__dict__.update(kwargs)  # update keys based on inputs - might not need this line/called through super
         # inheritance
         super(Session, self).__init__(**kwargs)
 
 
 
-    def load_pickled_session(self):
-        '''
-
-        :return:
-        '''
-
-        with open(self.pickled_file, 'rb') as f:
-            pkl_sess = dill.load(f)
-
-            for attr in dir(pkl_sess):
-                if not attr.startswith('__') and not callable(getattr(pkl_sess, attr)):
-                    setattr(self, attr, getattr(pkl_sess, attr))
+    # def load_pickled_session(self):
+    #     '''
+    #
+    #     :return:
+    #     '''
+    #
+    #     with open(self.pickled_file, 'rb') as f:
+    #         pkl_sess = dill.load(f)
+    #
+    #         for attr in dir(pkl_sess):
+    #             if not attr.startswith('__') and not callable(getattr(pkl_sess, attr)):
+    #                 setattr(self, attr, getattr(pkl_sess, attr))
 
     # def _check_for_pickled_session(self):
     #     if hasattr(self, 'pickle_dir'):
