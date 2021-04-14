@@ -221,7 +221,7 @@ class SessionInfo:
                                                     "%s_%03d_%03d.mat" % (self.scene, self.session, self.scan_number))
             if not os.path.exists(self.scanheader_file):
                 warnings.warn("Could not find sbxmat file at %s" % self.scanheader_file)
-                self.scanheader_file = None
+
 
             if self.scan_file is None:
                 self.scan_file = os.path.join(self.basedir, self.mouse, self.date,
@@ -229,7 +229,7 @@ class SessionInfo:
                                               "%s_%03d_%03d.sbx" % (self.scene, self.session, self.scan_number))
             if not os.path.exists(self.scan_file):
                 warnings.warn("Could not find sbx file at %s" % self.scan_file)
-                self.scan_file = None
+                
 
         elif self.scanner == "ThorLabs":
             raise NotImplementedError
