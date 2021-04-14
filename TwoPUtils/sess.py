@@ -262,7 +262,7 @@ class Session(SessionInfo, ABC):
     Extension of SessionInfo class that contains behavioral data and neural data
     """
 
-    def __init__(self, load_pickled_sess=False, **kwargs):
+    def __init__(self, pickled_file=None, **kwargs):
         """
 
         :param load_pickled_sess: bool, look for and load previous instance of session in pickle_dir
@@ -305,14 +305,16 @@ class Session(SessionInfo, ABC):
         super(Session, self).__init__(**kwargs)
 
         # check for pickled instance of Session class
-        if load_pickled_sess:
+        if pickled_file is not None:
             self.load_pickled_session()
 
-    def load_pickled_session(self, pklfile=None):
-        if pklfile is None:
-            pklfile = self._check_for_pickled_session()
+    def load_pickled_session(self):
+        '''
 
-        with open(pklfile, 'rb') as f:
+        :return:
+        '''
+
+        with open(self.pickled_file, 'rb') as f:
             pkl_sess = dill.load(f)
 
             for attr in dir(pkl_sess):
