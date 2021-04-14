@@ -91,7 +91,8 @@ class SessionInfo:
             self._check_minimal_keys()
         else:
             # check that provided keys are the right type
-            warnings.warn("skipping checking keys, remaining initialization not guaranteed to work")
+            if self.verbose:
+                warnings.warn("skipping checking keys, remaining initialization not guaranteed to work")
 
         # check for VR data
         if self.vr_filename is None:
