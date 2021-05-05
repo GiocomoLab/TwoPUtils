@@ -6,7 +6,7 @@ from glob import glob
 import dill
 import numpy as np
 
-from scanner_tools import sbx_utils
+from .scanner_tools import sbx_utils
 from . import preprocessing as pp
 from . import spatial_analyses
 
@@ -83,6 +83,7 @@ class SessionInfo:
         self.s2p_path = None  # string, suite2p path
         self.n_planes = 1  # int, number of imaging planes
         self.prompt_for_keys = False  # bool, whether or not to run through prompts for minimal keys
+        self.verbose = True
 
         self.__dict__.update(kwargs)  # update keys based on inputs
         # if want to receive prompts for minimal keys
@@ -90,7 +91,8 @@ class SessionInfo:
             self._check_minimal_keys()
         else:
             # check that provided keys are the right type
-            warnings.warn("skipping checking keys, remaining initialization not guaranteed to work")
+            if self.verbose:
+                warnings.warn("skipping checking keys, remaining initialization not guaranteed to work")
 
         # check for VR data
         if self.vr_filename is None:
@@ -104,7 +106,7 @@ class SessionInfo:
             self._check_for_suite2P_data()
 
             # check for other sessions that 2P data is aligned to
-            self._check_for_coaligned_suite2p_sessions()
+            # self._check_for_coaligned_suite2p_sessions()
 
         # print available fields
         # self.print_session_info()
@@ -203,7 +205,8 @@ class SessionInfo:
                 pass
         else:
             if not os.path.exists(self.vr_filename):
-                warnings.warn("VR File does not exist!", self.vr_filename)
+                if self.verbose:
+                    warnings.warn("VR File does not exist!", self.vr_filename)
 
     def _check_for_2P_data(self):
         """
@@ -220,16 +223,18 @@ class SessionInfo:
                                                     self.scene,
                                                     "%s_%03d_%03d.mat" % (self.scene, self.session, self.scan_number))
             if not os.path.exists(self.scanheader_file):
-                warnings.warn("Could not find sbxmat file at %s" % self.scanheader_file)
-                self.scanheader_file = None
+                if self.verbose:
+                    warnings.warn("Could not find sbxmat file at %s" % self.scanheader_file)
+
 
             if self.scan_file is None:
                 self.scan_file = os.path.join(self.basedir, self.mouse, self.date,
                                               self.scene,
                                               "%s_%03d_%03d.sbx" % (self.scene, self.session, self.scan_number))
             if not os.path.exists(self.scan_file):
-                warnings.warn("Could not find sbx file at %s" % self.scan_file)
-                self.scan_file = None
+                if self.verbose:
+                    warnings.warn("Could not find sbx file at %s" % self.scan_file)
+
 
         elif self.scanner == "ThorLabs":
             raise NotImplementedError
@@ -247,7 +252,8 @@ class SessionInfo:
             base, _ = os.path.splitext(self.scanheader_file)
             self.s2p_path = os.path.join(base, 'suite2p')
             if not os.path.exists(self.s2p_path):
-                warnings.warn("Could not find suite2p path at %s" % self.s2p_path)
+                if self.verbose:
+                    warnings.warn("Could not find suite2p path at %s" % self.s2p_path)
             else:
                 self.n_planes = len(glob(os.path.join(self.s2p_path, 'plane*')))
 
@@ -262,7 +268,7 @@ class Session(SessionInfo, ABC):
     Extension of SessionInfo class that contains behavioral data and neural data
     """
 
-    def __init__(self, load_pickled_sess=False, **kwargs):
+    def __init__(self,  **kwargs):
         """
 
         :param load_pickled_sess: bool, look for and load previous instance of session in pickle_dir
@@ -304,36 +310,36 @@ class Session(SessionInfo, ABC):
         # inheritance
         super(Session, self).__init__(**kwargs)
 
-        # check for pickled instance of Session class
-        if load_pickled_sess:
-            self.load_pickled_session()
 
-    def load_pickled_session(self, pklfile=None):
-        if pklfile is None:
-            pklfile = self._check_for_pickled_session()
 
-        with open(pklfile, 'rb') as f:
-            pkl_sess = dill.load(f)
+    # def load_pickled_session(self):
+    #     '''
+    #
+    #     :return:
+    #     '''
+    #
+    #     with open(self.pickled_file, 'rb') as f:
+    #         pkl_sess = dill.load(f)
+    #
+    #         for attr in dir(pkl_sess):
+    #             if not attr.startswith('__') and not callable(getattr(pkl_sess, attr)):
+    #                 setattr(self, attr, getattr(pkl_sess, attr))
 
-            for attr in dir(pkl_sess):
-                if not attr.startswith('__') and not callable(getattr(pkl_sess, attr)):
-                    setattr(self, attr, getattr(pkl_sess, attr))
-
-    def _check_for_pickled_session(self):
-        if hasattr(self, 'pickle_dir'):
-            pklfile = os.path.join(self.pickle_dir, self.mouse,
-                                   self.date,
-                                   "%s_%d.pkl" % (self.scene, self.session))
-
-        else:
-            print("SessionInfo class instance has no attribute 'pickle_dir'. \n",
-                  "Checking current working directory for pickled session")
-            pklfile = os.path.join(os.getcwd(), self.mouse,
-                                   self.date,
-                                   "%s_%d.pkl" % (self.scene, self.session))
-
-        assert os.path.exists(pklfile), "%s does not exist" % pklfile
-        return pklfile
+    # def _check_for_pickled_session(self):
+    #     if hasattr(self, 'pickle_dir'):
+    #         pklfile = os.path.join(self.pickle_dir, self.mouse,
+    #                                self.date,
+    #                                "%s_%d.pkl" % (self.scene, self.session))
+    # 
+    #     else:
+    #         print("SessionInfo class instance has no attribute 'pickle_dir'. \n",
+    #               "Checking current working directory for pickled session")
+    #         pklfile = os.path.join(os.getcwd(), self.mouse,
+    #                                self.date,
+    #                                "%s_%d.pkl" % (self.scene, self.session))
+    # 
+    #     assert os.path.exists(pklfile), "%s does not exist" % pklfile
+    #     return pklfile
 
     def load_scan_info(self):
         if self.scanner == "NLW":
@@ -359,12 +365,15 @@ class Session(SessionInfo, ABC):
         else:
             print("VR data already set or overwrite=False")
 
-    def load_suite2p_data(self, which_ts=('F', 'Fneu', 'S', 'F_chan2', 'Fneu_chan2'), custom_iscell=None):
+    def load_suite2p_data(self, which_ts=('F', 'Fneu', 'spks', 'F_chan2', 'Fneu_chan2'), custom_iscell=None, frames = None):
 
         if self.n_planes > 1:
             print("multiple planes functionality not added in yet, assuming 1 plane")
         else:
             self.s2p_ops = np.load(os.path.join(self.s2p_path, 'plane0', 'ops.npy'), allow_pickle=True).all()
+
+            if frames is None:
+                frames = slice(0, self.s2p_ops['nframes'])
 
             if custom_iscell in (None, False):
                 self.iscell = np.load(os.path.join(self.s2p_path, 'plane0', 'iscell.npy'))
@@ -381,22 +390,27 @@ class Session(SessionInfo, ABC):
                 ts_path = os.path.join(self.s2p_path, 'plane0', "%s.npy" % ts)
                 if os.path.exists(ts_path):
                     ts_to_pull[ts] = ts_path
-            self.add_timeseries_from_file(**ts_to_pull)
+            self.add_timeseries_from_file(frames = frames, **ts_to_pull)
             for ts_name in ts_to_pull.keys():
                 self.timeseries[ts_name] = self.timeseries[ts_name][self.iscell[:, 0] > 0, :]
+                assert self.timeseries[ts_name].shape[1] == self.vr_data.shape[0], "%s must be the same length as vr_data" % k
+                
 
-    def add_timeseries(self, **kwargs):
+    def add_timeseries(self, frames = None, **kwargs):
         for k, v in kwargs.items():
             if self.vr_data is not None:
                 if len(v.shape) < 2:
                     v = v[np.newaxis, :]
+
+                if frames is not None:
+                    v = v[:,frames]
                 # check that v is same length as vr_data
                 assert v.shape[1] == self.vr_data.shape[0], "%s must be the same length as vr_data" % k
 
             self.timeseries[k] = v
 
-    def add_timeseries_from_file(self, **kwargs):
-        self.add_timeseries(**{key: np.load(path) for key, path in kwargs.items()})
+    def add_timeseries_from_file(self,frames = None, **kwargs):
+        self.add_timeseries(frames = frames, **{key: np.load(path) for key, path in kwargs.items()})
 
     def add_pos_binned_trial_matrix(self, ts_name, pos_key, **trial_matrix_kwargs):
         """
@@ -415,3 +429,15 @@ class Session(SessionInfo, ABC):
                 _check_and_add_key(_ts)
         else:
             _check_and_add_key(ts_name)
+
+    def rm_timeseries(self,ts_name):
+        if not isinstance(ts_name,list) or not isinstance(ts_name,tuple):
+            ts_name = [ts_name]
+        _ = [self.timeseries.pop(_ts,None) for _ts in ts_name]
+
+
+    def rm_pos_binned_trial_matrix(self,keys):
+        if not isinstance(keys,list) or not isinstance(keys,tuple):
+            keys = [keys]
+        _ = [self.trial_matrices.pop(_k,None) for _k in keys]
+

@@ -3,12 +3,14 @@ from random import randrange
 import numpy as np
 import scipy as sp
 
-import utilities as u
+# from sklearn.impute import KNNImputer
 
+#import utilities as u
+from . import utilities as u
 
 def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
                  max_pos=450, speed=None, speed_thr=2, perm=False,
-                 mat_only=False, impute_nans = True):
+                 mat_only=False, impute_nans = False):
     """
 
     :param arr: timepoints x anything array to be put into trials x positions format
@@ -68,12 +70,24 @@ def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
 
     if impute_nans:
 
+
         # while np.isnan(trial_mat).sum()>0:
         for trial in range(trial_mat.shape[0]):
             _trial_mat = np.squeeze(trial_mat[trial,:,:])
-            nan_inds = np.isnan(_trial_mat[:,0])
-            _trial_mat[nan_inds,:] = np.nanmean(_trial_mat,axis=0,keepdims=True)
-            trial_mat[trial,:,:]=_trial_mat
+            if len(_trial_mat.shape)>1:
+                while np.isnan(_trial_mat[:,0].sum())>0:
+                    nan_inds = np.where(np.isnan(_trial_mat[:,0]))[0]
+                    _trial_mat[nan_inds,:] = _trial_mat[nan_inds-1,:]
+                # _trial_mat = knn_imp.fit_transform(_trial_mat)
+                # _trial_mat[nan_inds, :] = np.nanmean(_trial_mat, axis=0, keepdims=True)
+                trial_mat[trial, :, :] = _trial_mat
+            else:
+                # nan_inds = np.isnan(_trial_mat[:])
+                # _trial_mat[nan_inds] = np.nanmean(_trial_mat, axis=0, keepdims=True)
+                _trial_mat = knn_imp.fit_transform(_trial_mat[:,np.newaxis])
+                trial_mat[trial, :] = _trial_mat[:,np.newaxis]
+
+
 
     if mat_only:
         return np.squeeze(trial_mat)
@@ -89,8 +103,8 @@ def spatial_info(frmap,occupancy):
 
     ### vectorizing
     P_map = frmap - np.amin(frmap)+.001 # make sure there's no negative activity rates
-    P_map = P_map/P_map.mean(axis=0,keepdims=True)
-    SI = ((P_map*occupancy[:,np.newaxis])*np.log2(P_map)).sum(axis=0) # Skaggs and McNaughton spatial information
+    P_map = P_map/np.nanmean(P_map, axis=0,keepdims=True)
+    SI = np.nansum((P_map*occupancy[:,np.newaxis])*np.log2(P_map), axis=0) # Skaggs and McNaughton spatial information
 
     return SI
 
@@ -120,14 +134,17 @@ def place_cells_calc(C, position, tstart_inds,
     # get by trial info
     C_trial_mat, occ_trial_mat, edges,centers = trial_matrix(C,position,tstart_inds,teleport_inds,speed = speed, **kwargs)
 
-    def spatinfo_per_morph(_trial_mat,_occ_mat):
-        _SI = {}
-        _occ = _occ_mat.sum(axis=0) + 1E-3
-        _occ/=_occ.sum()
-        _SI = spatial_info(np.nanmean(_trial_mat,axis=0),_occ)
-        return _SI
+    # def spatinfo_per_morph(_trial_mat,_occ_mat):
+    #     _SI = {}
+    #     _occ = _occ_mat.sum(axis=0) + 1E-3
+    #     _occ/=_occ.sum()
+    #     _SI = spatial_info(np.nanmean(_trial_mat,axis=0),_occ)
+    #     return _SI
 
-    SI = spatinfo_per_morph(C_trial_mat,occ_trial_mat)
+    occ = occ_trial_mat.sum(axis=0) + 1E-3
+    occ /= occ.sum()
+    SI = spatial_info(np.nanmean(C_trial_mat,axis=0),occ)
+    # SI = spatinfo_per_morph(C_trial_mat,occ_trial_mat)
 
     SI_perms = np.zeros([nperms,C.shape[1]])
 
@@ -135,7 +152,9 @@ def place_cells_calc(C, position, tstart_inds,
         if perm%100 == 0:
             print('perm',perm)
         C_trial_mat, occ_trial_mat, _,__ = trial_matrix(C,position,tstart_inds,teleport_inds,speed = speed,perm=True,**kwargs)
-        _SI_perm =  spatinfo_per_morph(C_trial_mat,occ_trial_mat)
+        occ = occ_trial_mat.sum(axis=0) + 1E-3
+        occ /= occ.sum()
+        _SI_perm =  spatial_info(np.nanmean(C_trial_mat,axis=0),occ)
 
         SI_perms[perm,:]=_SI_perm
 
