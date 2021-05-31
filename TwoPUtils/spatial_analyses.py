@@ -103,8 +103,11 @@ def spatial_info(frmap,occupancy):
 
     ### vectorizing
     P_map = frmap - np.amin(frmap)+.001 # make sure there's no negative activity rates
-    P_map = P_map/np.nanmean(P_map, axis=0,keepdims=True)
-    SI = np.nansum((P_map*occupancy[:,np.newaxis])*np.log2(P_map), axis=0) # Skaggs and McNaughton spatial information
+    # print((P_map<0).sum())
+    mean_rate = (P_map * occupancy[:,np.newaxis]).sum(axis=0,keepdims=True)
+
+    P_map_norm = P_map/mean_rate #np.nanmean(P_map, axis=0,keepdims=True)
+    SI = np.nansum((P_map_norm*occupancy[:,np.newaxis])*np.log2(P_map_norm), axis=0) # Skaggs and McNaughton spatial information
 
     return SI
 
@@ -134,12 +137,7 @@ def place_cells_calc(C, position, tstart_inds,
     # get by trial info
     C_trial_mat, occ_trial_mat, edges,centers = trial_matrix(C,position,tstart_inds,teleport_inds,speed = speed, **kwargs)
 
-    # def spatinfo_per_morph(_trial_mat,_occ_mat):
-    #     _SI = {}
-    #     _occ = _occ_mat.sum(axis=0) + 1E-3
-    #     _occ/=_occ.sum()
-    #     _SI = spatial_info(np.nanmean(_trial_mat,axis=0),_occ)
-    #     return _SI
+
 
     occ = occ_trial_mat.sum(axis=0) + 1E-3
     occ /= occ.sum()

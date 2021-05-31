@@ -106,7 +106,7 @@ def _ttl_check(ttl_times):
 
     dt_ttl = np.diff(np.insert(ttl_times, 0, 0))  # insert zero at beginning and calculate delta ttl time
     tmp = np.zeros(dt_ttl.shape)
-    tmp[dt_ttl < .005] = 1  # find ttls faster than 200 Hz (unrealistically fast - probably a ttl which bounced to ground)
+    tmp[dt_ttl < .01] = 1  # find ttls faster than 200 Hz (unrealistically fast - probably a ttl which bounced to ground)
     # ensured outside of this script that this finds the true start ttl on every scan
     mask = np.insert(np.diff(tmp), 0, 0)  # find first ttl in string that were too fast
     mask[mask < 0] = 0

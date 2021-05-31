@@ -345,7 +345,7 @@ class Session(SessionInfo, ABC):
         if self.scanner == "NLW":
             self.scan_info = sbx_utils.loadmat(self.scanheader_file)
 
-    def align_VR_to_2P(self, overwrite=False):
+    def align_VR_to_2P(self, overwrite=False, run_ttl_check = False):
 
         if self.vr_data is None or overwrite:
             # load sqlite file as pandas array
@@ -353,7 +353,7 @@ class Session(SessionInfo, ABC):
             if not self.VR_only:
                 # feed pandas array and scene name to alignment function
                 if self.scanner == "NLW":
-                    self.vr_data = pp.vr_align_to_2P(df, self.scan_info)
+                    self.vr_data = pp.vr_align_to_2P(df, self.scan_info, run_ttl_check = run_ttl_check)
                 else:
                     warnings.warn("VR alignment only implemented for Neurolabware at the moment")
                     raise NotImplementedError
