@@ -210,7 +210,7 @@ def placecell_sort(C_trial_mat,masks,cv_sort=True,sigma = 2):
     '''plot place place cells across morph values using a cross-validated population sorting
     inputs: C_morph_dict - output from u.trial_type_dict(C_trial_mat, morphs) where C is the [trials, positions,ncells]
                 and morphs is [ntrials,] array of mean morph values
-            masks - dictionary of place cell masks from place_cells_calc
+            masks -  place cell masks from place_cells_calc
             cv_sort - bool; calculate sorting from all trials (False) or a randomly selected half of trials (True)
             plot - bool; whether or not to actually generate matplotlib plots or just return sorted data
     outputs: f - figure handle
