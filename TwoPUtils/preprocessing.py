@@ -144,8 +144,8 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False):
         else:
             lines = np.array(scan_info['lines'])
 
-    frames = frames[::info['ot_wave'].shape[0]]
-    lines = lines[::info[ot_wave].shape[0]]
+    frames = frames[::scan_info['ot_wave'].shape[0]]
+    lines = lines[::scan_info[ot_wave].shape[0]]
     # try:
     #     frames = np.array([f*scan_info['fov_repeats'] for f in scan_info['frames']])
     #     lines = np.array([l%scan_info['fold_lines'] for l in scan_info['lines']])
