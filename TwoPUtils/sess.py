@@ -83,7 +83,7 @@ class SessionInfo:
         self.s2p_path = None  # string, suite2p path
         self.n_planes = 1  # int, number of imaging planes
         self.prompt_for_keys = False  # bool, whether or not to run through prompts for minimal keys
-        self.verbose = True
+        self.verbose = False
 
         self.__dict__.update(kwargs)  # update keys based on inputs
         # if want to receive prompts for minimal keys
@@ -345,7 +345,7 @@ class Session(SessionInfo, ABC):
         if self.scanner == "NLW":
             self.scan_info = sbx_utils.loadmat(self.scanheader_file)
 
-    def align_VR_to_2P(self, overwrite=False, run_ttl_check = False):
+    def align_VR_to_2P(self, overwrite=True, run_ttl_check = False):
 
         if self.vr_data is None or overwrite:
             # load sqlite file as pandas array
@@ -353,7 +353,7 @@ class Session(SessionInfo, ABC):
             if not self.VR_only:
                 # feed pandas array and scene name to alignment function
                 if self.scanner == "NLW":
-                    self.vr_data = pp.vr_align_to_2P(df, self.scan_info, run_ttl_check = run_ttl_check)
+                    self.vr_data = pp.vr_align_to_2P(df, self.scan_info, run_ttl_check = run_ttl_check, n_planes=self.n_planes)
                 else:
                     warnings.warn("VR alignment only implemented for Neurolabware at the moment")
                     raise NotImplementedError

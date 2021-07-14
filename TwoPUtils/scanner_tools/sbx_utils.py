@@ -48,7 +48,9 @@ def loadmat(filename):
         os.path.getsize(filename[:-4] + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1) * int(info['fov_repeats'])
 
     
-    info['frame_rate'] = info['resfreq'] / info['config']['lines'] * (2 - info['scanmode'])*info['fov_repeats']/info['otwave'].shape[0]
+    info['frame_rate'] = info['resfreq'] / info['config']['lines'] * (2 - info['scanmode'])*info['fov_repeats']
+    if 'otwave' in info.keys():
+        info['n_planes']=info['otwave'].shape[0]
 
     return info
 

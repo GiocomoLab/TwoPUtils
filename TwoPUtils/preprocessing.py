@@ -114,7 +114,7 @@ def _ttl_check(ttl_times):
     return mask==0 # original ttl's up to a 1 VR frame error (shouldn't be a meaningful issue for calcium but
                    # but it is an issue for voltage imaging
 
-def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False):
+def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False, n_planes = 1):
     """
     place holder
     :param infofile:
@@ -130,48 +130,57 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False):
     lr = fr * scan_info['config']['lines']/scan_info['fov_repeats']  # line rate
 
     if 'frame' in scan_info.keys() and 'line' in scan_info.keys():
-        frames = np.array([f * scan_info['fov_repeats'] for f in scan_info['frame']])
+        frames = scan_info['frame'].astype(np.int)
+        frame_diff = np.ediff1d(frames, to_begin=0)
+        try:
+            mods = np.argwhere(frame_diff < -100)[0]
+            for i, mod in enumerate(mods.tolist()):
+                frames[mod:] += (i + 1) * 65535
+        except:
+            pass
+        frames = frames * scan_info['fov_repeats']
+
+        # frames = np.array([f * scan_info['fov_repeats'] for f in scan_info['frame']])
         if scan_info['fold_lines']>0:
             lines = np.array([l % scan_info['fold_lines'] for l in scan_info['line']])
         else:
             lines = np.array(scan_info['line'])
     else:
-        frames = np.array([f * scan_info['fov_repeats'] for f in scan_info['frames']])
-
+        # frames = np.array([f * scan_info['fov_repeats'] for f in scan_info['frames']])
+        frames = scan_info['frames'].astype(np.int)
+        frame_diff = np.ediff1d(frames, to_begin=0)
+        try:
+            mods = np.argwhere(frame_diff < -100)[0]
+            for i, mod in enumerate(mods.tolist()):
+                frames[mod:] += (i + 1) * 65535
+        except:
+            pass
+        frames = frames * scan_info['fov_repeats']
         # lines = np.array([l % scan_info['fold_lines'] for l in scan_info['lines']])
         if scan_info['fold_lines']>0:
             lines = np.array([l % scan_info['fold_lines'] for l in scan_info['lines']])
         else:
             lines = np.array(scan_info['lines'])
-    if 'otwave' in scan_info.keys():
-        frames = frames[::scan_info['otwave'].shape[0]]
-        lines = lines[::scan_info['otwave'].shape[0]]
-    else:
-        print("no optotune wave parameters, assuming single plane")
-    # try:
-    #     frames = np.array([f*scan_info['fov_repeats'] for f in scan_info['frames']])
-    #     lines = np.array([l%scan_info['fold_lines'] for l in scan_info['lines']])
-    # except:
-    #     frames = np.array([f * scan_info['fov_repeats'] for f in scan_info['frame']])
-    #     lines = np.array([l % scan_info['fold_lines'] for l in scan_info['line']])
-    ttl_times = frames / fr + lines / lr
+    
 
+    ttl_times = frames / fr + lines / lr
+    # print(ttl_times[-100:])
     if run_ttl_check:
         mask = _ttl_check(ttl_times)
+        print(mask.sum())
         ttl_times = ttl_times[mask]
         frames = frames[mask]
         # lines = lines[mask]
 
 
     numVRFrames = frames.shape[0]
+    # print('numVRFrames', numVRFrames)
 
 
     # create empty pandas dataframe to store calcium aligned data
-    ca_df = pd.DataFrame(columns=vr_dataframe.columns, index=np.arange(scan_info['max_idx']))
-    if 'otwave' in scan_info.keys():
-        ca_time = np.arange(0, 1 / fr * scan_info['max_idx']/scan_info['otwave'].shape[0], 1 / fr)  # time on this even grid
-    else:
-        ca_time = np.arange(0, 1 / fr * scan_info['max_idx'], 1 / fr)  # time on this even grid
+    ca_df = pd.DataFrame(columns=vr_dataframe.columns, index=np.arange(int(scan_info['max_idx']/n_planes)))
+    # ca_time = np.arange(0, 1 / fr * scan_info['max_idx'], 1 / fr)  # time on this even grid
+    ca_time = np.arange(0,1/fr * scan_info['max_idx'], n_planes/fr)
     ca_time[ca_time>ttl_times[-1]]=ttl_times[-1]
     print(ttl_times.shape,ca_time.shape)
     print(ttl_times[-1],ca_time[-1])
