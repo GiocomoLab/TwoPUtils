@@ -370,6 +370,7 @@ class Session(SessionInfo, ABC):
         if self.n_planes > 1:
             print("multiple planes functionality not added in yet, assuming 1 plane")
         else:
+            print(self.s2p_path)
             self.s2p_ops = np.load(os.path.join(self.s2p_path, 'plane0', 'ops.npy'), allow_pickle=True).all()
 
             if frames is None:
