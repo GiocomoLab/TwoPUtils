@@ -10,7 +10,7 @@ from . import utilities as u
 
 def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
                  max_pos=450, speed=None, speed_thr=2, perm=False,
-                 mat_only=False, impute_nans = False):
+                 mat_only=False, impute_nans = False, sum =False):
     """
 
     :param arr: timepoints x anything array to be put into trials x positions format
@@ -37,7 +37,7 @@ def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
     ntrials = tstart_inds.shape[0]
     if speed is not None:  # mask out speeds below speed threshold
         pos[speed < speed_thr] = -1000
-        arr[speed < speed_thr, :] = np.nan
+        # arr[speed < speed_thr, :] = np.nan
 
     # make position bins
     bin_edges = np.arange(min_pos, max_pos + bin_size, bin_size)
@@ -62,7 +62,10 @@ def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
         # average within spatial bins
         for b, (edge1, edge2) in enumerate(zip(bin_edges[:-1], bin_edges[1:])):
             if np.where((pos_t > edge1) & (pos_t <= edge2))[0].shape[0] > 0:
-                trial_mat[trial, b] = np.nanmean(arr_t[(pos_t > edge1) & (pos_t <= edge2), :], axis=0)
+                if sum:
+                    trial_mat[trial, b] = np.nansum(arr_t[(pos_t > edge1) & (pos_t <= edge2), :], axis=0)
+                else:
+                    trial_mat[trial, b] = np.nanmean(arr_t[(pos_t > edge1) & (pos_t <= edge2), :], axis=0)
                 # occ_mat[trial, b] = np.where((pos_t > edge1) & (pos_t <= edge2))[0].shape[0]
                 occ_mat[trial, b] = (1-np.isnan(arr_t[(pos_t > edge1) & (pos_t <= edge2),0])).sum()
             else:

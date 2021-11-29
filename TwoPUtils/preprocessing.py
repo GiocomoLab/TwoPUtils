@@ -40,7 +40,7 @@ def _fix_teleports(df: pd.DataFrame):
     pos[pos < -50] = -50
     teleport_inds = np.where(np.ediff1d(pos, to_end=0) <= -50)[0]
     tstart_inds = np.append([0], teleport_inds[:-1] + 1)
-    assert teleport_inds.shape==tstart_inds.shape , "trial starts and teleports not the same shape"
+    assert teleport_inds.shape==tstart_inds.shape , "trial starts and teleports not the same shape, %d starts %d teleports" % (tstart_inds.shape[0], teleport_inds.shape[0])
 
     for ind in range(tstart_inds.shape[0]):  # for teleports
         while (pos[tstart_inds[ind]] < 0):  # while position is negative
@@ -126,7 +126,7 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False, n_planes = 1):
 
 
 
-    fr = scan_info['frame_rate']  # frame rate
+    fr = scan_info['frame_rate'] # frame rate
     lr = fr * scan_info['config']['lines']/scan_info['fov_repeats']  # line rate
 
     if 'frame' in scan_info.keys() and 'line' in scan_info.keys():
@@ -167,7 +167,7 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False, n_planes = 1):
     # print(ttl_times[-100:])
     if run_ttl_check:
         mask = _ttl_check(ttl_times)
-        print(mask.sum())
+        print('bad ttls', mask.sum())
         ttl_times = ttl_times[mask]
         frames = frames[mask]
         # lines = lines[mask]

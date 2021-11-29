@@ -219,4 +219,7 @@ def smooth_raster(x, mat, ax=None, smooth=False, sig=2, vals=None, cmap='cool', 
     ax.set_yticks(np.arange(0, mat.shape[0], 10))
     ax.set_yticklabels(["%d" % i for i in np.arange(mat.shape[0], 0, -10).tolist()])
 
-    return ax
+    if ax is None:
+        return f, ax
+    else:
+        return ax

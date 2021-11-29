@@ -5,6 +5,7 @@ from glob import glob
 
 import dill
 import numpy as np
+import scipy as sp
 
 from .scanner_tools import sbx_utils
 from . import preprocessing as pp
@@ -369,32 +370,32 @@ class Session(SessionInfo, ABC):
 
         if self.n_planes > 1:
             print("multiple planes functionality not added in yet, assuming 1 plane")
+
+        print(self.s2p_path)
+        self.s2p_ops = np.load(os.path.join(self.s2p_path, 'plane0', 'ops.npy'), allow_pickle=True).all()
+
+        if frames is None:
+            frames = slice(0, self.s2p_ops['nframes'])
+
+        if custom_iscell in (None, False):
+            self.iscell = np.load(os.path.join(self.s2p_path, 'plane0', 'iscell.npy'))
         else:
-            print(self.s2p_path)
-            self.s2p_ops = np.load(os.path.join(self.s2p_path, 'plane0', 'ops.npy'), allow_pickle=True).all()
+            self.iscell = np.load(custom_iscell)
 
-            if frames is None:
-                frames = slice(0, self.s2p_ops['nframes'])
+        try:
+            self.s2p_stats = np.load(os.path.join(self.s2p_path, 'plane0', 'stats.npy'), allow_pickle=True)[self.iscell[:,0]>0]
+        except:
+            self.s2p_stats = np.load(os.path.join(self.s2p_path, 'plane0', 'stat.npy'), allow_pickle=True)[self.iscell[:,0]>0]
 
-            if custom_iscell in (None, False):
-                self.iscell = np.load(os.path.join(self.s2p_path, 'plane0', 'iscell.npy'))
-            else:
-                self.iscell = np.load(custom_iscell)
-
-            try:
-                self.s2p_stats = np.load(os.path.join(self.s2p_path, 'plane0', 'stats.npy'), allow_pickle=True)[self.iscell[:,0]>0]
-            except:
-                self.s2p_stats = np.load(os.path.join(self.s2p_path, 'plane0', 'stat.npy'), allow_pickle=True)[self.iscell[:,0]>0]
-
-            ts_to_pull = {}
-            for ts in which_ts:
-                ts_path = os.path.join(self.s2p_path, 'plane0', "%s.npy" % ts)
-                if os.path.exists(ts_path):
-                    ts_to_pull[ts] = ts_path
-            self.add_timeseries_from_file(frames = frames, **ts_to_pull)
-            for ts_name in ts_to_pull.keys():
-                self.timeseries[ts_name] = self.timeseries[ts_name][self.iscell[:, 0] > 0, :]
-                assert self.timeseries[ts_name].shape[1] == self.vr_data.shape[0], "%s must be the same length as vr_data" % k
+        ts_to_pull = {}
+        for ts in which_ts:
+            ts_path = os.path.join(self.s2p_path, 'plane0', "%s.npy" % ts)
+            if os.path.exists(ts_path):
+                ts_to_pull[ts] = ts_path
+        self.add_timeseries_from_file(frames = frames, **ts_to_pull)
+        for ts_name in ts_to_pull.keys():
+            self.timeseries[ts_name] = self.timeseries[ts_name][self.iscell[:, 0] > 0, :]
+            assert self.timeseries[ts_name].shape[1] == self.vr_data.shape[0], "%s must be the same length as vr_data" % k
                 
 
     def add_timeseries(self, frames = None, **kwargs):
@@ -405,6 +406,11 @@ class Session(SessionInfo, ABC):
 
                 if frames is not None:
                     v = v[:,frames]
+
+                # if self.n_planes>1:
+                #     # print(v.shape, self.vr_data.shape)
+                #     v = sp.signal.resample(v,self.vr_data.shape[0],axis=1)
+
                 # check that v is same length as vr_data
                 assert v.shape[1] == self.vr_data.shape[0], "%s must be the same length as vr_data" % k
 

@@ -28,7 +28,7 @@ def default_ops():
         'combined': True,  # combine multiple planes into a single result /single canvas for GUI
         'aspect': 1.0,  # um/pixels in X / um/pixels in Y (for correct aspect ratio in GUI)
         # bidirectional phase offset
-        'do_bidiphase': True,
+        'do_bidiphase': False,
         'bidiphase': 0,
         # registration settings
         'do_registration': 1,  # whether to register data (2 forces re-registration)
