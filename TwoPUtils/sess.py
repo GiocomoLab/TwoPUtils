@@ -303,44 +303,13 @@ class Session(SessionInfo, ABC):
         self.n_planes = None
         self.timeseries = {}
         self.trial_matrices = {}
-        self.iscell = None
-        self.s2p_ops = None
-        self.s2p_stats = None
+        self.iscell = []
+        self.s2p_ops = []
+        self.s2p_stats = []
 
         # self.__dict__.update(kwargs)  # update keys based on inputs - might not need this line/called through super
         # inheritance
         super(Session, self).__init__(**kwargs)
-
-
-
-    # def load_pickled_session(self):
-    #     '''
-    #
-    #     :return:
-    #     '''
-    #
-    #     with open(self.pickled_file, 'rb') as f:
-    #         pkl_sess = dill.load(f)
-    #
-    #         for attr in dir(pkl_sess):
-    #             if not attr.startswith('__') and not callable(getattr(pkl_sess, attr)):
-    #                 setattr(self, attr, getattr(pkl_sess, attr))
-
-    # def _check_for_pickled_session(self):
-    #     if hasattr(self, 'pickle_dir'):
-    #         pklfile = os.path.join(self.pickle_dir, self.mouse,
-    #                                self.date,
-    #                                "%s_%d.pkl" % (self.scene, self.session))
-    # 
-    #     else:
-    #         print("SessionInfo class instance has no attribute 'pickle_dir'. \n",
-    #               "Checking current working directory for pickled session")
-    #         pklfile = os.path.join(os.getcwd(), self.mouse,
-    #                                self.date,
-    #                                "%s_%d.pkl" % (self.scene, self.session))
-    # 
-    #     assert os.path.exists(pklfile), "%s does not exist" % pklfile
-    #     return pklfile
 
     def load_scan_info(self):
         if self.scanner == "NLW":
@@ -369,27 +338,31 @@ class Session(SessionInfo, ABC):
     def load_suite2p_data(self, which_ts=('F', 'Fneu', 'spks', 'F_chan2', 'Fneu_chan2'), custom_iscell=None, frames = None):
 
         if self.n_planes > 1:
+            plane = "combined"
             print("multiple planes functionality not added in yet, assuming 1 plane")
+        else:
+            plane = "plane0"
+
 
         print(self.s2p_path)
-        self.s2p_ops = np.load(os.path.join(self.s2p_path, 'plane0', 'ops.npy'), allow_pickle=True).all()
+        self.s2p_ops = np.load(os.path.join(self.s2p_path, plane, 'ops.npy'), allow_pickle=True).all()
 
         if frames is None:
             frames = slice(0, self.s2p_ops['nframes'])
 
         if custom_iscell in (None, False):
-            self.iscell = np.load(os.path.join(self.s2p_path, 'plane0', 'iscell.npy'))
+            self.iscell = np.load(os.path.join(self.s2p_path, plane, 'iscell.npy'))
         else:
             self.iscell = np.load(custom_iscell)
 
         try:
-            self.s2p_stats = np.load(os.path.join(self.s2p_path, 'plane0', 'stats.npy'), allow_pickle=True)[self.iscell[:,0]>0]
+            self.s2p_stats = np.load(os.path.join(self.s2p_path, plane, 'stats.npy'), allow_pickle=True)[self.iscell[:,0]>0]
         except:
-            self.s2p_stats = np.load(os.path.join(self.s2p_path, 'plane0', 'stat.npy'), allow_pickle=True)[self.iscell[:,0]>0]
+            self.s2p_stats = np.load(os.path.join(self.s2p_path, plane, 'stat.npy'), allow_pickle=True)[self.iscell[:,0]>0]
 
         ts_to_pull = {}
         for ts in which_ts:
-            ts_path = os.path.join(self.s2p_path, 'plane0', "%s.npy" % ts)
+            ts_path = os.path.join(self.s2p_path, plane, "%s.npy" % ts)
             if os.path.exists(ts_path):
                 ts_to_pull[ts] = ts_path
         self.add_timeseries_from_file(frames = frames, **ts_to_pull)
