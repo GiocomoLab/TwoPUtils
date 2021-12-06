@@ -380,11 +380,14 @@ class Session(SessionInfo, ABC):
                 if frames is not None:
                     v = v[:,frames]
 
-                # if self.n_planes>1:
-                #     # print(v.shape, self.vr_data.shape)
-                #     v = sp.signal.resample(v,self.vr_data.shape[0],axis=1)
+                if self.n_planes>1:
+                    # print(v.shape, self.vr_data.shape)
+                    assert v.shape[1]-self.vr_data.shape[0]<2, "multiplane data more than 1 frame different from vr_data"
+
+                    v = v[:,:self.vr_data.shape[0]]
 
                 # check that v is same length as vr_data
+
                 assert v.shape[1] == self.vr_data.shape[0], \
                     "%s must be the same length as vr_data, %s %d, vr %d " % (k, k, v.shape[1], self.vr_data.shape[0])
 
