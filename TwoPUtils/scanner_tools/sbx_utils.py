@@ -49,6 +49,8 @@ def loadmat(filename):
 
     
     info['frame_rate'] = info['resfreq'] / info['config']['lines'] * (2 - info['scanmode'])*info['fov_repeats']
+    if 'otwave' in info.keys():
+        info['n_planes']=info['otwave'].shape[0]
 
     return info
 

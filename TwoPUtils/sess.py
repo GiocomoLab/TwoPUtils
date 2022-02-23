@@ -5,6 +5,7 @@ from glob import glob
 
 import dill
 import numpy as np
+import scipy as sp
 
 from .scanner_tools import sbx_utils
 from . import preprocessing as pp
@@ -83,7 +84,7 @@ class SessionInfo:
         self.s2p_path = None  # string, suite2p path
         self.n_planes = 1  # int, number of imaging planes
         self.prompt_for_keys = False  # bool, whether or not to run through prompts for minimal keys
-        self.verbose = True
+        self.verbose = False
 
         self.__dict__.update(kwargs)  # update keys based on inputs
         # if want to receive prompts for minimal keys
@@ -302,50 +303,19 @@ class Session(SessionInfo, ABC):
         self.n_planes = None
         self.timeseries = {}
         self.trial_matrices = {}
-        self.iscell = None
-        self.s2p_ops = None
-        self.s2p_stats = None
+        self.iscell = []
+        self.s2p_ops = []
+        self.s2p_stats = []
 
         # self.__dict__.update(kwargs)  # update keys based on inputs - might not need this line/called through super
         # inheritance
         super(Session, self).__init__(**kwargs)
 
-
-
-    # def load_pickled_session(self):
-    #     '''
-    #
-    #     :return:
-    #     '''
-    #
-    #     with open(self.pickled_file, 'rb') as f:
-    #         pkl_sess = dill.load(f)
-    #
-    #         for attr in dir(pkl_sess):
-    #             if not attr.startswith('__') and not callable(getattr(pkl_sess, attr)):
-    #                 setattr(self, attr, getattr(pkl_sess, attr))
-
-    # def _check_for_pickled_session(self):
-    #     if hasattr(self, 'pickle_dir'):
-    #         pklfile = os.path.join(self.pickle_dir, self.mouse,
-    #                                self.date,
-    #                                "%s_%d.pkl" % (self.scene, self.session))
-    # 
-    #     else:
-    #         print("SessionInfo class instance has no attribute 'pickle_dir'. \n",
-    #               "Checking current working directory for pickled session")
-    #         pklfile = os.path.join(os.getcwd(), self.mouse,
-    #                                self.date,
-    #                                "%s_%d.pkl" % (self.scene, self.session))
-    # 
-    #     assert os.path.exists(pklfile), "%s does not exist" % pklfile
-    #     return pklfile
-
     def load_scan_info(self):
         if self.scanner == "NLW":
             self.scan_info = sbx_utils.loadmat(self.scanheader_file)
 
-    def align_VR_to_2P(self, overwrite=False):
+    def align_VR_to_2P(self, overwrite=True, run_ttl_check = False):
 
         if self.vr_data is None or overwrite:
             # load sqlite file as pandas array
@@ -353,7 +323,7 @@ class Session(SessionInfo, ABC):
             if not self.VR_only:
                 # feed pandas array and scene name to alignment function
                 if self.scanner == "NLW":
-                    self.vr_data = pp.vr_align_to_2P(df, self.scan_info)
+                    self.vr_data = pp.vr_align_to_2P(df, self.scan_info, run_ttl_check = run_ttl_check, n_planes=self.n_planes)
                 else:
                     warnings.warn("VR alignment only implemented for Neurolabware at the moment")
                     raise NotImplementedError
@@ -368,32 +338,37 @@ class Session(SessionInfo, ABC):
     def load_suite2p_data(self, which_ts=('F', 'Fneu', 'spks', 'F_chan2', 'Fneu_chan2'), custom_iscell=None, frames = None):
 
         if self.n_planes > 1:
+            plane = "combined"
             print("multiple planes functionality not added in yet, assuming 1 plane")
         else:
-            self.s2p_ops = np.load(os.path.join(self.s2p_path, 'plane0', 'ops.npy'), allow_pickle=True).all()
+            plane = "plane0"
 
-            if frames is None:
-                frames = slice(0, self.s2p_ops['nframes'])
 
-            if custom_iscell in (None, False):
-                self.iscell = np.load(os.path.join(self.s2p_path, 'plane0', 'iscell.npy'))
-            else:
-                self.iscell = np.load(custom_iscell)
+        print(self.s2p_path)
+        self.s2p_ops = np.load(os.path.join(self.s2p_path, plane, 'ops.npy'), allow_pickle=True).all()
 
-            try:
-                self.s2p_stats = np.load(os.path.join(self.s2p_path, 'plane0', 'stats.npy'), allow_pickle=True)[self.iscell[:,0]>0]
-            except:
-                self.s2p_stats = np.load(os.path.join(self.s2p_path, 'plane0', 'stat.npy'), allow_pickle=True)[self.iscell[:,0]>0]
+        if frames is None:
+            frames = slice(0, self.s2p_ops['nframes'])
 
-            ts_to_pull = {}
-            for ts in which_ts:
-                ts_path = os.path.join(self.s2p_path, 'plane0', "%s.npy" % ts)
-                if os.path.exists(ts_path):
-                    ts_to_pull[ts] = ts_path
-            self.add_timeseries_from_file(frames = frames, **ts_to_pull)
-            for ts_name in ts_to_pull.keys():
-                self.timeseries[ts_name] = self.timeseries[ts_name][self.iscell[:, 0] > 0, :]
-                assert self.timeseries[ts_name].shape[1] == self.vr_data.shape[0], "%s must be the same length as vr_data" % k
+        if custom_iscell in (None, False):
+            self.iscell = np.load(os.path.join(self.s2p_path, plane, 'iscell.npy'))
+        else:
+            self.iscell = np.load(custom_iscell)
+
+        try:
+            self.s2p_stats = np.load(os.path.join(self.s2p_path, plane, 'stats.npy'), allow_pickle=True)[self.iscell[:,0]>0]
+        except:
+            self.s2p_stats = np.load(os.path.join(self.s2p_path, plane, 'stat.npy'), allow_pickle=True)[self.iscell[:,0]>0]
+
+        ts_to_pull = {}
+        for ts in which_ts:
+            ts_path = os.path.join(self.s2p_path, plane, "%s.npy" % ts)
+            if os.path.exists(ts_path):
+                ts_to_pull[ts] = ts_path
+        self.add_timeseries_from_file(frames = frames, **ts_to_pull)
+        for ts_name in ts_to_pull.keys():
+            self.timeseries[ts_name] = self.timeseries[ts_name][self.iscell[:, 0] > 0, :]
+            assert self.timeseries[ts_name].shape[1] == self.vr_data.shape[0], "%s must be the same length as vr_data" % k
                 
 
     def add_timeseries(self, frames = None, **kwargs):
@@ -404,8 +379,17 @@ class Session(SessionInfo, ABC):
 
                 if frames is not None:
                     v = v[:,frames]
+
+                if self.n_planes>1:
+                    # print(v.shape, self.vr_data.shape)
+                    assert v.shape[1]-self.vr_data.shape[0]<2, "multiplane data more than 1 frame different from vr_data"
+
+                    v = v[:,:self.vr_data.shape[0]]
+
                 # check that v is same length as vr_data
-                assert v.shape[1] == self.vr_data.shape[0], "%s must be the same length as vr_data" % k
+
+                assert v.shape[1] == self.vr_data.shape[0], \
+                    "%s must be the same length as vr_data, %s %d, vr %d " % (k, k, v.shape[1], self.vr_data.shape[0])
 
             self.timeseries[k] = v
 

@@ -40,7 +40,7 @@ def _fix_teleports(df: pd.DataFrame):
     pos[pos < -50] = -50
     teleport_inds = np.where(np.ediff1d(pos, to_end=0) <= -50)[0]
     tstart_inds = np.append([0], teleport_inds[:-1] + 1)
-    assert teleport_inds.shape==tstart_inds.shape , "trial starts and teleports not the same shape"
+    assert teleport_inds.shape==tstart_inds.shape , "trial starts and teleports not the same shape, %d starts %d teleports" % (tstart_inds.shape[0], teleport_inds.shape[0])
 
     for ind in range(tstart_inds.shape[0]):  # for teleports
         while (pos[tstart_inds[ind]] < 0):  # while position is negative
@@ -106,7 +106,7 @@ def _ttl_check(ttl_times):
 
     dt_ttl = np.diff(np.insert(ttl_times, 0, 0))  # insert zero at beginning and calculate delta ttl time
     tmp = np.zeros(dt_ttl.shape)
-    tmp[dt_ttl < .005] = 1  # find ttls faster than 200 Hz (unrealistically fast - probably a ttl which bounced to ground)
+    tmp[dt_ttl < .01] = 1  # find ttls faster than 200 Hz (unrealistically fast - probably a ttl which bounced to ground)
     # ensured outside of this script that this finds the true start ttl on every scan
     mask = np.insert(np.diff(tmp), 0, 0)  # find first ttl in string that were too fast
     mask[mask < 0] = 0
@@ -114,7 +114,7 @@ def _ttl_check(ttl_times):
     return mask==0 # original ttl's up to a 1 VR frame error (shouldn't be a meaningful issue for calcium but
                    # but it is an issue for voltage imaging
 
-def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False):
+def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False, n_planes = 1):
     """
     place holder
     :param infofile:
@@ -126,43 +126,61 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False):
 
 
 
-    fr = scan_info['frame_rate']  # frame rate
+    fr = scan_info['frame_rate'] # frame rate
     lr = fr * scan_info['config']['lines']/scan_info['fov_repeats']  # line rate
 
     if 'frame' in scan_info.keys() and 'line' in scan_info.keys():
-        frames = np.array([f * scan_info['fov_repeats'] for f in scan_info['frame']])
+        frames = scan_info['frame'].astype(np.int)
+        frame_diff = np.ediff1d(frames, to_begin=0)
+        try:
+            mods = np.argwhere(frame_diff < -100)[0]
+            for i, mod in enumerate(mods.tolist()):
+                frames[mod:] += (i + 1) * 65535
+        except:
+            pass
+        frames = frames * scan_info['fov_repeats']
+
+        # frames = np.array([f * scan_info['fov_repeats'] for f in scan_info['frame']])
         if scan_info['fold_lines']>0:
             lines = np.array([l % scan_info['fold_lines'] for l in scan_info['line']])
         else:
             lines = np.array(scan_info['line'])
     else:
-        frames = np.array([f * scan_info['fov_repeats'] for f in scan_info['frames']])
+        # frames = np.array([f * scan_info['fov_repeats'] for f in scan_info['frames']])
+        frames = scan_info['frames'].astype(np.int)
+        frame_diff = np.ediff1d(frames, to_begin=0)
+        try:
+            mods = np.argwhere(frame_diff < -100)[0]
+            for i, mod in enumerate(mods.tolist()):
+                frames[mod:] += (i + 1) * 65535
+        except:
+            pass
+        frames = frames * scan_info['fov_repeats']
         # lines = np.array([l % scan_info['fold_lines'] for l in scan_info['lines']])
         if scan_info['fold_lines']>0:
             lines = np.array([l % scan_info['fold_lines'] for l in scan_info['lines']])
         else:
             lines = np.array(scan_info['lines'])
-    # try:
-    #     frames = np.array([f*scan_info['fov_repeats'] for f in scan_info['frames']])
-    #     lines = np.array([l%scan_info['fold_lines'] for l in scan_info['lines']])
-    # except:
-    #     frames = np.array([f * scan_info['fov_repeats'] for f in scan_info['frame']])
-    #     lines = np.array([l % scan_info['fold_lines'] for l in scan_info['line']])
-    ttl_times = frames / fr + lines / lr
+    
 
+    ttl_times = frames / fr + lines / lr
+    # print(ttl_times[-100:])
     if run_ttl_check:
         mask = _ttl_check(ttl_times)
+        print('bad ttls', mask.sum())
         ttl_times = ttl_times[mask]
         frames = frames[mask]
         # lines = lines[mask]
 
 
     numVRFrames = frames.shape[0]
+    # print('numVRFrames', numVRFrames)
 
 
     # create empty pandas dataframe to store calcium aligned data
-    ca_df = pd.DataFrame(columns=vr_dataframe.columns, index=np.arange(scan_info['max_idx']))
-    ca_time = np.arange(0, 1 / fr * scan_info['max_idx'], 1 / fr)  # time on this even grid
+    ca_df = pd.DataFrame(columns=vr_dataframe.columns, index=np.arange(int(scan_info['max_idx']/n_planes)))
+    # ca_time = np.arange(0, 1 / fr * scan_info['max_idx'], 1 / fr)  # time on this even grid
+    ca_time = np.arange(0,1/fr * scan_info['max_idx'], n_planes/fr)
     ca_time[ca_time>ttl_times[-1]]=ttl_times[-1]
     print(ttl_times.shape,ca_time.shape)
     print(ttl_times[-1],ca_time[-1])

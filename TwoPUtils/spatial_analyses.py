@@ -10,7 +10,7 @@ from . import utilities as u
 
 def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
                  max_pos=450, speed=None, speed_thr=2, perm=False,
-                 mat_only=False, impute_nans = False):
+                 mat_only=False, impute_nans = False, sum=False):
     """
 
     :param arr: timepoints x anything array to be put into trials x positions format
@@ -62,7 +62,10 @@ def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
         # average within spatial bins
         for b, (edge1, edge2) in enumerate(zip(bin_edges[:-1], bin_edges[1:])):
             if np.where((pos_t > edge1) & (pos_t <= edge2))[0].shape[0] > 0:
-                trial_mat[trial, b] = np.nanmean(arr_t[(pos_t > edge1) & (pos_t <= edge2), :], axis=0)
+                if sum:
+                    trial_mat[trial, b] = np.nansum(arr_t[(pos_t > edge1) & (pos_t <= edge2), :], axis=0)
+                else:
+                    trial_mat[trial, b] = np.nanmean(arr_t[(pos_t > edge1) & (pos_t <= edge2), :], axis=0)
                 # occ_mat[trial, b] = np.where((pos_t > edge1) & (pos_t <= edge2))[0].shape[0]
                 occ_mat[trial, b] = (1-np.isnan(arr_t[(pos_t > edge1) & (pos_t <= edge2),0])).sum()
             else:
@@ -103,8 +106,11 @@ def spatial_info(frmap,occupancy):
 
     ### vectorizing
     P_map = frmap - np.amin(frmap)+.001 # make sure there's no negative activity rates
-    P_map = P_map/np.nanmean(P_map, axis=0,keepdims=True)
-    SI = np.nansum((P_map*occupancy[:,np.newaxis])*np.log2(P_map), axis=0) # Skaggs and McNaughton spatial information
+    # print((P_map<0).sum())
+    mean_rate = (P_map * occupancy[:,np.newaxis]).sum(axis=0,keepdims=True)
+
+    P_map_norm = P_map/mean_rate #np.nanmean(P_map, axis=0,keepdims=True)
+    SI = np.nansum((P_map_norm*occupancy[:,np.newaxis])*np.log2(P_map_norm), axis=0) # Skaggs and McNaughton spatial information
 
     return SI
 
@@ -134,12 +140,7 @@ def place_cells_calc(C, position, tstart_inds,
     # get by trial info
     C_trial_mat, occ_trial_mat, edges,centers = trial_matrix(C,position,tstart_inds,teleport_inds,speed = speed, **kwargs)
 
-    # def spatinfo_per_morph(_trial_mat,_occ_mat):
-    #     _SI = {}
-    #     _occ = _occ_mat.sum(axis=0) + 1E-3
-    #     _occ/=_occ.sum()
-    #     _SI = spatial_info(np.nanmean(_trial_mat,axis=0),_occ)
-    #     return _SI
+
 
     occ = occ_trial_mat.sum(axis=0) + 1E-3
     occ /= occ.sum()
@@ -212,7 +213,7 @@ def placecell_sort(C_trial_mat,masks,cv_sort=True,sigma = 2):
     '''plot place place cells across morph values using a cross-validated population sorting
     inputs: C_morph_dict - output from u.trial_type_dict(C_trial_mat, morphs) where C is the [trials, positions,ncells]
                 and morphs is [ntrials,] array of mean morph values
-            masks - dictionary of place cell masks from place_cells_calc
+            masks -  place cell masks from place_cells_calc
             cv_sort - bool; calculate sorting from all trials (False) or a randomly selected half of trials (True)
             plot - bool; whether or not to actually generate matplotlib plots or just return sorted data
     outputs: f - figure handle
