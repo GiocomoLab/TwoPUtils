@@ -117,17 +117,19 @@ def dff(C, sig_baseline=10, win_baseline=300, sig_output=3, method='maximin'):
     :return:
     """
 
+    C_ = np.copy(C)
+    
     if method == 'maximin':  # windowed baseline estimation
-        flow = filters.gaussian_filter(C, [0, sig_baseline])
+        flow = filters.gaussian_filter(C_, [0, sig_baseline])
         flow = filters.minimum_filter1d(flow, win_baseline, axis=1)
         flow = filters.maximum_filter1d(flow, win_baseline, axis=1)
     else:
         flow = None
         raise NotImplementedError
 
-    C -= flow  # substract baseline (dF)
-    C /= flow  # divide by baseline (dF/F)
-    return filters.gaussian_filter(C, [0, sig_output])  # smooth result
+    C_ -= flow  # substract baseline (dF)
+    C_ /= flow  # divide by baseline (dF/F)
+    return filters.gaussian_filter(C_, [0, sig_output])  # smooth result
 
 
 def correct_trial_mask(rewards, starts, stops, N):

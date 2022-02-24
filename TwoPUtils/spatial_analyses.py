@@ -8,7 +8,7 @@ import scipy as sp
 #import utilities as u
 from . import utilities as u
 
-def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
+def trial_matrix(arr_in, pos_in, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
                  max_pos=450, speed=None, speed_thr=2, perm=False,
                  mat_only=False, impute_nans = False, sum=False):
     """
@@ -32,7 +32,8 @@ def trial_matrix(arr, pos, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
                     bin_centers - bin centers
     """
 
-
+    arr = np.copy(arr_in)
+    pos = np.copy(pos_in)
 
     ntrials = tstart_inds.shape[0]
     if speed is not None:  # mask out speeds below speed threshold
