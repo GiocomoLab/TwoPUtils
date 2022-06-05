@@ -335,8 +335,7 @@ class Session(SessionInfo, ABC):
         else:
             print("VR data already set or overwrite=False")
 
-    def load_suite2p_data(self, which_ts=('F', 'Fneu', 'spks', 'F_chan2', 'Fneu_chan2'), custom_iscell=None,
-                          frames = None, use_iscell=True):
+    def load_suite2p_data(self, which_ts=('F', 'Fneu', 'spks', 'F_chan2', 'Fneu_chan2'), custom_iscell=None, frames = None):
 
         if self.n_planes > 1:
             plane = "combined"
@@ -352,20 +351,9 @@ class Session(SessionInfo, ABC):
             frames = slice(0, self.s2p_ops['nframes'])
 
         if custom_iscell in (None, False):
-            default_iscell_path = os.path.join(self.s2p_path, plane, 'iscell.npy')
-            if os.path.exists(default_iscell_path):
-                self.iscell = np.load(default_iscell_path)
-            else:
-                print("No iscell file found, using None")
-                self.iscell = None
-            
+            self.iscell = np.load(os.path.join(self.s2p_path, plane, 'iscell.npy'))
         else:
-            if os.path.splitext(custom_iscell) == '.npy':
-                self.iscell = np.load(custom_iscell)
-            elif os.path.splitext(custom_iscell) == '.csv':
-                self.iscell = pd.read_csv(custom_iscell)
-            else:
-                raise ValueError("custom_iscell must be a .npy or .csv file")
+            self.iscell = np.load(custom_iscell)
 
         try:
             self.s2p_stats = np.load(os.path.join(self.s2p_path, plane, 'stats.npy'), allow_pickle=True)[self.iscell[:,0]>0]
@@ -379,13 +367,8 @@ class Session(SessionInfo, ABC):
                 ts_to_pull[ts] = ts_path
         self.add_timeseries_from_file(frames = frames, **ts_to_pull)
         for ts_name in ts_to_pull.keys():
-            assert self.timeseries[ts_name].shape[1] == self.vr_data.shape[
-                0], "%s must be the same length as vr_data" % k
-            if use_iscell:
-                self.timeseries[ts_name] = self.timeseries[ts_name][self.iscell[:,0]>0,:]
-            else:
-                pass
-
+            self.timeseries[ts_name] = self.timeseries[ts_name][self.iscell[:, 0] > 0, :]
+            assert self.timeseries[ts_name].shape[1] == self.vr_data.shape[0], "%s must be the same length as vr_data" % k
                 
 
     def add_timeseries(self, frames = None, **kwargs):
