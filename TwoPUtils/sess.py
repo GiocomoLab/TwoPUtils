@@ -360,6 +360,10 @@ class Session(SessionInfo, ABC):
                 print("No iscell file found, using None")
                 self.iscell = None
         else:
+            custom_iscell = os.path.normpath(custom_iscell)
+            if custom_iscell.count(os.path.sep) < 1:
+                custom_iscell = os.path.join(self.s2p_path, plane, custom_iscell)
+                
             if os.path.splitext(custom_iscell)[1] == '.npy':
                 self.iscell = np.load(custom_iscell)
             elif os.path.splitext(custom_iscell)[1] == '.csv':
