@@ -6,6 +6,7 @@ from glob import glob
 import dill
 import numpy as np
 import scipy as sp
+import pandas as pd
 
 from .scanner_tools import sbx_utils
 from . import preprocessing as pp
