@@ -359,9 +359,9 @@ class Session(SessionInfo, ABC):
                 print("No iscell file found, using None")
                 self.iscell = None
         else:
-            if os.path.splitext(custom_iscell) == '.npy':
+            if os.path.splitext(custom_iscell)[1] == '.npy':
                 self.iscell = np.load(custom_iscell)
-            elif os.path.splitext(custom_iscell) == '.csv':
+            elif os.path.splitext(custom_iscell)[1] == '.csv':
                 self.iscell = pd.read_csv(custom_iscell)
             else:
                 raise ValueError("custom_iscell must be a .npy or .csv file")
