@@ -363,7 +363,7 @@ class Session(SessionInfo, ABC):
             custom_iscell = os.path.normpath(custom_iscell)
             if custom_iscell.count(os.path.sep) < 1:
                 custom_iscell = os.path.join(self.s2p_path, plane, custom_iscell)
-                
+
             if os.path.splitext(custom_iscell)[1] == '.npy':
                 self.iscell = np.load(custom_iscell)
             elif os.path.splitext(custom_iscell)[1] == '.csv':
@@ -372,9 +372,12 @@ class Session(SessionInfo, ABC):
                 raise ValueError("custom_iscell must be a .npy or .csv file")
 
         try:
-            self.s2p_stats = np.load(os.path.join(self.s2p_path, plane, 'stats.npy'), allow_pickle=True)[self.iscell[:,0]>0]
+            self.s2p_stats = np.load(os.path.join(self.s2p_path, plane, 'stats.npy'), allow_pickle=True)#[self.iscell[:,0]>0]
         except:
-            self.s2p_stats = np.load(os.path.join(self.s2p_path, plane, 'stat.npy'), allow_pickle=True)[self.iscell[:,0]>0]
+            self.s2p_stats = np.load(os.path.join(self.s2p_path, plane, 'stat.npy'), allow_pickle=True)#[self.iscell[:,0]>0]
+
+        if use_iscell:
+            self.s2p_stats = self.s2p_stats[self.iscell[:,0]>0]
 
         ts_to_pull = {}
         for ts in which_ts:
