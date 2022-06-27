@@ -117,7 +117,8 @@ def spatial_info(frmap,occupancy):
 
 
 def place_cells_calc(C, position, tstart_inds,
-                     teleport_inds, pthr = .05, speed=None, nperms = 100, **kwargs):
+                     teleport_inds, pthr = .05, speed=None, nperms = 100, 
+                     output_shuffle = False, **kwargs):
     '''Find cells that have significant spatial information info. Use bootstrapped estimate of each cell's
     spatial information to minimize effect of outlier trials
     inputs:C - [timepoints, neurons] activity rate/dFF over whole session
@@ -129,19 +130,22 @@ def place_cells_calc(C, position, tstart_inds,
             pthr - (float) 1 - p-value for shuffle procedure
             speed - [timepoints,] or None; animal's speed at each timepoint. Used for filtering stationary
                 timepoints. If None, no filtering is performed
-            win_trial_perm - (bool); whether to perform shuffling within a trial. If false,
-                shuffling is performed with respect to the entire timeseries
-            morphlist - (list); which mean morph values to use in separate place cell calculations
-    outputs: masks - dictionary of masks for cells with significant spatial info in each morph
-            FR - dictionary of firing rate maps per cell per morph
-            SI - dictionary of spatial information per cell per morph
+            nperms - number of permutations. Shuffling is performed within a trial. 
+    outputs:
+            if output_shuffle:
+                masks - array of masks for cells with significant spatial info in each morph
+                SI - array of spatial information per cell per morph
+                p - p value per cell
+                perm_trial_mat - array of shuffles per cell (trials x pos x neurons x permutations)
+            else:
+                masks
+                SI
+                p
 
     '''
 
     # get by trial info
     C_trial_mat, occ_trial_mat, edges,centers = trial_matrix(C,position,tstart_inds,teleport_inds,speed = speed, **kwargs)
-
-
 
     occ = occ_trial_mat.sum(axis=0) + 1E-3
     occ /= occ.sum()
@@ -149,6 +153,8 @@ def place_cells_calc(C, position, tstart_inds,
     # SI = spatinfo_per_morph(C_trial_mat,occ_trial_mat)
 
     SI_perms = np.zeros([nperms,C.shape[1]])
+    if output_shuffle:
+        perm_trial_mat = np.zeros((C_trial_mat.shape[0],C_trial_mat.shape[1],C_trial_mat.shape[2],nperms))
 
     for perm in range(nperms):
         if perm%100 == 0:
@@ -159,13 +165,19 @@ def place_cells_calc(C, position, tstart_inds,
         _SI_perm =  spatial_info(np.nanmean(C_trial_mat,axis=0),occ)
 
         SI_perms[perm,:]=_SI_perm
+        
+        if output_shuffle:
+            perm_trial_mat[:,:,:,perm] = C_trial_mat
 
     p = np.ones([C.shape[1],])
     for cell in range(C.shape[1]):
         p[cell] = (SI[cell] <= SI_perms[:,cell]).sum()/nperms
     masks = p<=pthr
 
-    return masks, SI, p
+    if output_shuffle:
+        return masks, SI, p, perm_trial_mat
+    else:
+        return masks, SI, p
 
 
 def spatial_info_perm_test(SI,C,position,tstart,tstop,nperms = 10000,shuffled_SI=None,win_trial = True, **kwargs):
