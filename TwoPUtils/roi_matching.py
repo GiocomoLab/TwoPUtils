@@ -23,40 +23,25 @@ class ROIAligner:
         :param ref_sess: TwoPUtils.sess.Session instance for the session that all other sessions will be aligned to
         :param targ_sess: (list or tuple of) TwoPUtils.sess.Session instance(s) for the sessions that will be aligned
         """
-
         self.sess_list = sess_list
-        # make targ_sess iterable if not
-        # if isinstance(targ_sess, list) or isinstance(targ_sess, tuple):
-        #     self.targ_sess = targ_sess
-        # else:
-        #     self.targ_sess = tuple(targ_sess)
-
         # roi x Ly x Lx matrix of ROI masks
-        # self.ref_roistack = make_roistack(self.ref_sess.s2p_stats, self.ref_sess.s2p_ops)
         self.ref_roistack = None
-        # self.reg_ops = reg_ops
+
         # allocate
-        # self.ref_match_inds = [[]] * len(self.targ_sess)
-        # self.targ_match_inds = [[]] * len(self.targ_sess)
         self.match_inds = {}
         self.match_ious = {}
-        # self.mat_ious = [[]] * len(self.targ_sess)
+
         self.frames = None
         self.rigid_offsets = None
         self.nonrigid_offsets = None
-
-        # align targ_sess mean images to ref_sess mean image
-        # self.align_mean_images(ref_img,reg_ops)
 
     def run_pairwise_matches(self, thresh=None):
         """
         calculate matched ROIs for ref_sess vs each targ_sess
         :return:
         """
-
-
-
         for ref_ind in range(len(self.sess_list)):
+
             self.ref_roistack = make_roistack(self.sess_list[ref_ind].s2p_stats, self.sess_list[ref_ind].s2p_ops)
             # align targ_sess mean images to ref_sess mean image
             self.reg_ops = self.sess_list[ref_ind].s2p_ops
@@ -371,7 +356,7 @@ def get_com_from_roistack(roistack):
         com[ind, :] = np.argwhere(roistack[ind, :, :]).mean(axis=0)
     return com
 
-def plot_roi_matches():
+def plot_roi_matches(sa):
     for ref_cell, targ_cells in sa.common_rois_all_sessions.items():
         fig,ax = plt.subplots(3,3,figsize=[15,15])
         fig.suptitle("cell %d" % ref_cell)
