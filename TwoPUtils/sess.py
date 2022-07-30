@@ -352,6 +352,7 @@ class Session(SessionInfo, ABC):
 
         if frames is None:
             frames = slice(0, self.s2p_ops['nframes'])
+            print(frames)
 
         # Get iscell
         if custom_iscell in (None, False):
@@ -416,6 +417,9 @@ class Session(SessionInfo, ABC):
 
                 for ts_name in ts_to_pull.keys():
                     load_ts = np.load(ts_to_pull[ts_name],allow_pickle=True)
+                    if frames is not None:
+                        load_ts = load_ts[:,frames]
+                        
                     assert load_ts.shape[1] == self.vr_data.shape[0],\
                         "%s must be the same length as vr_data" % ts_name
                     # Keep curated cells
@@ -423,9 +427,6 @@ class Session(SessionInfo, ABC):
                         ts_per_plane[i][ts_name] = load_ts[iscell_i[:, 0] > 0, :]
                     else:
                         pass
-                    
-                    if frames is not None:
-                        ts_per_plane[i][ts_name] = ts_per_plane[i][ts_name][:,frames]
             
             print("Concatenating timeseries across planes...")
             for ts in ts_to_pull.keys():
