@@ -352,7 +352,6 @@ class Session(SessionInfo, ABC):
 
         if frames is None:
             frames = slice(0, self.s2p_ops['nframes'])
-            print(frames)
 
         # Get iscell
         if custom_iscell in (None, False):

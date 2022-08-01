@@ -163,6 +163,7 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False, n_planes = 1):
             lines = np.array(scan_info['lines'])
     
 
+    print(f"frame rate {fr}")
     ttl_times = frames / fr + lines / lr
     # print(ttl_times[-100:])
     if run_ttl_check:
@@ -182,8 +183,8 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False, n_planes = 1):
     # ca_time = np.arange(0, 1 / fr * scan_info['max_idx'], 1 / fr)  # time on this even grid
     ca_time = np.arange(0,1/fr * scan_info['max_idx'], n_planes/fr)
     ca_time[ca_time>ttl_times[-1]]=ttl_times[-1]
-    print(ttl_times.shape,ca_time.shape)
-    print(ttl_times[-1],ca_time[-1])
+    print(f"{ttl_times.shape} ttl times,{ca_time.shape} ca2+ frame times")
+    print(f"last time: VR {ttl_times[-1]}, ca2+ {ca_time[-1]}")
     if (ca_time.shape[0] - ca_df.shape[0]) == 1:  # occasionally a 1 frame correction due to
         # scan stopping mid frame
         warnings.warn('one frame correction')
