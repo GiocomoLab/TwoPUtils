@@ -248,26 +248,42 @@ def align_stack(ref_img, frames, ops):
         maskSlope=ops['spatial_taper'] if ops['1Preg'] else 3 * ops['smooth_sigma'],
     )
 
-    cfRefImg = rigid.phasecorr_reference(
-        refImg=ref_img,
-        smooth_sigma=ops['smooth_sigma'],
-        pad_fft=ops['pad_fft'],
-    )
+    try:
+        cfRefImg = rigid.phasecorr_reference(
+            refImg=ref_img,
+            smooth_sigma=ops['smooth_sigma'],
+            pad_fft=ops['pad_fft'],
+        )
+    except: # if suite2p version no longer uses pad_fft
+        cfRefImg = rigid.phasecorr_reference(
+            refImg=ref_img,
+            smooth_sigma=ops['smooth_sigma'],
+        )
 
     if ops.get('nonrigid'):
         if 'yblock' not in ops:
             ops['yblock'], ops['xblock'], ops['nblocks'], ops['block_size'], ops[
                 'NRsm'] = nonrigid.make_blocks(Ly=ops['Ly'], Lx=ops['Lx'], block_size=ops['block_size'])
 
-        maskMulNR, maskOffsetNR, cfRefImgNR = nonrigid.phasecorr_reference(
-            refImg0=ref_img,
-            maskSlope=ops['spatial_taper'] if ops['1Preg'] else 3 * ops['smooth_sigma'],
-            # slope of taper mask at the edges
-            smooth_sigma=ops['smooth_sigma'],
-            yblock=ops['yblock'],
-            xblock=ops['xblock'],
-            pad_fft=ops['pad_fft'],
-        )
+        try:
+            maskMulNR, maskOffsetNR, cfRefImgNR = nonrigid.phasecorr_reference(
+                refImg0=ref_img,
+                maskSlope=ops['spatial_taper'] if ops['1Preg'] else 3 * ops['smooth_sigma'],
+                # slope of taper mask at the edges
+                smooth_sigma=ops['smooth_sigma'],
+                yblock=ops['yblock'],
+                xblock=ops['xblock'],
+                pad_fft=ops['pad_fft'],
+            )
+        except:
+            maskMulNR, maskOffsetNR, cfRefImgNR = nonrigid.phasecorr_reference(
+                refImg0=ref_img,
+                maskSlope=ops['spatial_taper'] if ops['1Preg'] else 3 * ops['smooth_sigma'],
+                # slope of taper mask at the edges
+                smooth_sigma=ops['smooth_sigma'],
+                yblock=ops['yblock'],
+                xblock=ops['xblock'],
+            )
     ###
 
     fsmooth = frames.copy().astype(np.float32)
