@@ -372,6 +372,46 @@ def get_com_from_roistack(roistack):
         com[ind, :] = np.argwhere(roistack[ind, :, :]).mean(axis=0)
     return com
 
+
+def common_rois(roi_matches, inds):
+    """
+    Find rois that are common to all day indices specified in inds
+    
+    :param roi_matches: result of pairwise roi matching, i.e. ROIaligner.match_inds
+    :param inds: indices of days in project sessions_dict (0-indexed)
+    :return: common rois: 1st row contains ref ROIs (1st session),
+            subsequent rows contain the matching target ROIs of the ref ROIs,
+            aligned columnwise
+    """
+    # set reference as the first index given
+    ref = roi_matches[inds[0]]
+    ref_common_rois = []
+
+    for i, targ_ind in enumerate(inds[1:]):
+
+        #         targ = roi_matches[targ_ind][inds[0]]
+        if i == 0:
+
+            ref_common_rois = set(ref[targ_ind]['ref_inds'])
+        else:
+            ref_common_rois = ref_common_rois & set(ref[targ_ind]['ref_inds'])
+
+        # find cells that are in reference match list each time
+    ref_common_rois = list(ref_common_rois)
+
+    # find matching indices
+    common_roi_mapping = np.zeros([len(inds), len(ref_common_rois)]) * np.nan
+    common_roi_mapping[0, :] = ref_common_rois
+    for i, roi in enumerate(ref_common_rois):
+        for j, targ_ind in enumerate(inds[1:]):
+            #             print(j)
+            ind = np.argwhere(ref[targ_ind]['ref_inds'] == roi)[0][0]
+            #             print(j,roi,ind)
+            common_roi_mapping[j + 1, i] = ref[targ_ind]['targ_inds'][ind]
+
+    return common_roi_mapping.astype(np.int)
+
+
 def plot_roi_matches(sa):
     for ref_cell, targ_cells in sa.common_rois_all_sessions.items():
         fig,ax = plt.subplots(3,3,figsize=[15,15])
