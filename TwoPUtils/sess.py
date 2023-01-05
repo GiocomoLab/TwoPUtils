@@ -265,7 +265,7 @@ class SessionInfo:
         # raise NotImplementedError
 
 
-class Session(SessionInfo, ABC):
+class Session(SessionInfo):
     """
     Extension of SessionInfo class that contains behavioral data and neural data
     """
