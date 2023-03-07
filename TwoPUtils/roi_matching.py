@@ -48,7 +48,7 @@ class ROIAligner:
         # align targ_sess mean images to ref_sess mean image
         # self.align_mean_images(ref_img,reg_ops)
 
-    def run_pairwise_matches(self, thresh=None):
+    def run_pairwise_matches(self, thresh=None,plane = None):
         """
         calculate matched ROIs for ref_sess vs each targ_sess
         :return:
@@ -57,14 +57,29 @@ class ROIAligner:
 
 
         for ref_ind in range(len(self.sess_list)):
-            self.ref_roistack = make_roistack(self.sess_list[ref_ind].s2p_stats, self.sess_list[ref_ind].s2p_ops)
+            
             # align targ_sess mean images to ref_sess mean image
-            self.reg_ops = self.sess_list[ref_ind].s2p_ops
-            self.align_mean_images(self.sess_list[ref_ind].s2p_ops['meanImg'], self.sess_list[ref_ind].s2p_ops)
             targ_inds = [i for i in range(len(self.sess_list)) if i not in [ref_ind]]
             self.match_inds[ref_ind] = {}
+
+            if plane is None:
+                self.ref_roistack = make_roistack(self.sess_list[ref_ind].s2p_stats, self.sess_list[ref_ind].s2p_ops)
+                self.reg_ops = self.sess_list[ref_ind].s2p_ops
+                # get mean images
+                self.frames = np.array([s.s2p_ops['meanImg'] for s in self.sess_list],dtype = np.float32)
+                self.align_mean_images(self.sess_list[ref_ind].s2p_ops['meanImg'], self.sess_list[ref_ind].s2p_ops)
+                
+                
+            else:
+                self.ref_roistack = make_roistack(self.sess_list[ref_ind].s2p_stats[plane], self.sess_list[ref_ind].s2p_ops[plane])
+                
+                self.reg_ops = self.sess_list[ref_ind].s2p_ops[plane]
+                # get mean images
+                self.frames = np.array([s.s2p_ops[plane]['meanImg'] for s in self.sess_list],dtype = np.float32)
+                self.align_mean_images(self.sess_list[ref_ind].s2p_ops[plane]['meanImg'], self.sess_list[ref_ind].s2p_ops[plane])
+                
             for targ_ind in targ_inds:
-                ref_match_inds, targ_match_inds, iou_match = self.match_session_pair(targ_ind,thresh=thresh)
+                ref_match_inds, targ_match_inds, iou_match = self.match_session_pair(targ_ind,thresh=thresh,plane=plane)
                 self.match_inds[ref_ind][targ_ind] = {'ref_inds': ref_match_inds, 'targ_inds': targ_match_inds, 'iou': iou_match}
 
 
@@ -76,13 +91,12 @@ class ROIAligner:
         :return:
         """
 
-        # get mean images
-        self.frames = np.array([s.s2p_ops['meanImg'] for s in self.sess_list]).astype(np.float32)
+        
         # align them
         self.frames, self.rigid_offsets, self.nonrigid_offsets = align_stack(
             ref_img, self.frames, reg_ops)
 
-    def match_session_pair(self, index, thresh=None):
+    def match_session_pair(self, index, thresh=None,plane = None):
         """
         Find matching ROI pairs for ref_sess and targ_sess[index]
 
@@ -93,8 +107,13 @@ class ROIAligner:
         """
 
         # make roi x Ly x Lx array of masks
-        targ_roistack = make_roistack(self.sess_list[index].s2p_stats,
-                                      self.sess_list[index].s2p_ops)
+        if plane is None:
+            targ_roistack = make_roistack(self.sess_list[index].s2p_stats,
+                                        self.sess_list[index].s2p_ops)
+        else:
+            targ_roistack = make_roistack(self.sess_list[index].s2p_stats[plane],
+                                        self.sess_list[index].s2p_ops[plane])
+    
 
         # apply alignment transform to roi masks
         self.align_roistack(targ_roistack, [self.rigid_offsets[0][index], self.rigid_offsets[1][index]],
@@ -266,7 +285,7 @@ def align_stack(ref_img, frames, ops):
     cfRefImg = rigid.phasecorr_reference(
         refImg=ref_img,
         smooth_sigma=ops['smooth_sigma'],
-        pad_fft=ops['pad_fft'],
+        #pad_fft=ops['pad_fft'],
     )
 
     if ops.get('nonrigid'):
@@ -281,7 +300,7 @@ def align_stack(ref_img, frames, ops):
             smooth_sigma=ops['smooth_sigma'],
             yblock=ops['yblock'],
             xblock=ops['xblock'],
-            pad_fft=ops['pad_fft'],
+            #pad_fft=ops['pad_fft'],
         )
     ###
 
@@ -352,7 +371,7 @@ def make_roistack(stats, ops):
     :return: roistack: np.array
     """
 
-    roistack = np.zeros([stats.shape[0], ops['Ly'], ops['Lx']]).astype(np.float32)
+    roistack = np.zeros([stats.shape[0], ops['Ly'], ops['Lx']],dtype=np.float32)
     for i, roi in enumerate(stats):
         roistack[i, roi['ypix'], roi['xpix']] = 1
     return roistack
@@ -371,7 +390,7 @@ def get_com_from_roistack(roistack):
         com[ind, :] = np.argwhere(roistack[ind, :, :]).mean(axis=0)
     return com
 
-def plot_roi_matches():
+def plot_roi_matches(sa):
     for ref_cell, targ_cells in sa.common_rois_all_sessions.items():
         fig,ax = plt.subplots(3,3,figsize=[15,15])
         fig.suptitle("cell %d" % ref_cell)

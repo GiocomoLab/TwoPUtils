@@ -364,11 +364,34 @@ class Session(SessionInfo, ABC):
             self.teleport_inds = self.vr_data.index[self.vr_data.teleport == 1]
         else:
             print("VR data already set or overwrite=False")
+    def _load_ops_and_co(self,folder):
+        s2p_ops = np.load(os.path.join(folder,'ops.npy'), allow_pickle=True).all()
+        try:
+            s2p_stats = np.load(os.path.join(folder, 'stats.npy'), allow_pickle=True)
+        except:
+            s2p_stats = np.load(os.path.join(folder, 'stat.npy'), allow_pickle=True)
+
+        iscell = np.load(os.path.join(folder, 'iscell.npy'))
+        return s2p_ops,s2p_stats,iscell
 
     def load_suite2p_data(self, which_ts=('F', 'Fneu', 'spks', 'F_chan2', 'Fneu_chan2'), custom_iscell=None, frames = None):
-
         if self.n_planes > 1:
-            print("multiple planes functionality not added in yet, assuming 1 plane")
+            print("multiple planes functionality only partially implemented")
+            #maybe timeseries from 'combined' folder, and ops and stats from each folder seperately, issue is
+            #potentially also with iscell
+            #alternatively, turn everything into list
+            self.s2p_ops = []
+            self.iscell = []
+            self.s2p_stats = []
+            
+            for iP in range(self.n_planes):
+                plane_folder = 'plane{}'.format(iP)
+                target_folder = os.path.join(self.s2p_path, plane_folder)
+                (ops,stats,iscell)=self._load_ops_and_co(target_folder)
+                stats = stats[iscell[:,0]>=0]
+                self.s2p_ops.append(ops)
+                self.s2p_stats.append(stats)
+                self.iscell.append(iscell)
         else:
             self.s2p_ops = np.load(os.path.join(self.s2p_path, 'plane0', 'ops.npy'), allow_pickle=True).all()
 
@@ -381,9 +404,9 @@ class Session(SessionInfo, ABC):
                 self.iscell = np.load(custom_iscell)
 
             try:
-                self.s2p_stats = np.load(os.path.join(self.s2p_path, 'plane0', 'stats.npy'), allow_pickle=True)[self.iscell[:,0]>0]
+                self.s2p_stats = np.load(os.path.join(self.s2p_path, 'plane0', 'stats.npy'), allow_pickle=True)[self.iscell[:,0]>=0]
             except:
-                self.s2p_stats = np.load(os.path.join(self.s2p_path, 'plane0', 'stat.npy'), allow_pickle=True)[self.iscell[:,0]>0]
+                self.s2p_stats = np.load(os.path.join(self.s2p_path, 'plane0', 'stat.npy'), allow_pickle=True)[self.iscell[:,0]>=0]
 
             ts_to_pull = {}
             for ts in which_ts:
@@ -392,8 +415,8 @@ class Session(SessionInfo, ABC):
                     ts_to_pull[ts] = ts_path
             self.add_timeseries_from_file(frames = frames, **ts_to_pull)
             for ts_name in ts_to_pull.keys():
-                self.timeseries[ts_name] = self.timeseries[ts_name][self.iscell[:, 0] > 0, :]
-                assert self.timeseries[ts_name].shape[1] == self.vr_data.shape[0], "%s must be the same length as vr_data" % k
+                self.timeseries[ts_name] = self.timeseries[ts_name][self.iscell[:, 0] >= 0, :]
+                #assert self.timeseries[ts_name].shape[1] == self.vr_data.shape[0], "%s must be the same length as vr_data" % k
                 
 
     def add_timeseries(self, frames = None, **kwargs):
