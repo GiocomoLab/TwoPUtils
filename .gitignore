@@ -1,0 +1,8 @@
+## UTF-8 encoding ##
+# :set fileencoding=utf8
+
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+*/__pycache__*
+TwoPUtils.egg-info/*
+.idea/*
