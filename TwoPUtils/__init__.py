@@ -1,5 +1,9 @@
 from . import scanner_tools
-from . import preprocessing, sess, s2p, spatial_analyses, utilities, roi_matching
+from . import preprocessing, sess, spatial_analyses, utilities
+
+import sys
+if not 'google.colab' in sys.modules:
+    from . import s2p, roi_matching
 
 
 

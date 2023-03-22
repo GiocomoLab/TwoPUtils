@@ -1,0 +1,16 @@
+Metadata-Version: 2.1
+Name: TwoPUtils
+Version: 0.0.1
+Summary: General purpose two photon processing
+Home-page: https://github.com/GiocomoLab/TwoPUtils
+Author: Giocomo Lab 2P Punks
+Author-email: markplitt@gmail.com
+License: BSD
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: Topic :: Utilities
+Classifier: License :: OSI Approved :: BSD License
+
+"# 2PUtils" 
+
+
