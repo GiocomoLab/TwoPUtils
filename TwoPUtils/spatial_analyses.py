@@ -10,7 +10,7 @@ from . import utilities as u
 
 def trial_matrix(arr_in, pos_in, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
                  max_pos=450, speed=None, speed_thr=2, perm=False,
-                 mat_only=False, impute_nans = False, sum=False):
+                 mat_only=False, impute_nans = False, use_sum=False):
     """
 
     :param arr: timepoints x anything array to be put into trials x positions format
@@ -57,24 +57,26 @@ def trial_matrix(arr_in, pos_in, tstart_inds, tstop_inds, bin_size=10, min_pos =
         firstI, lastI = tstart_inds[trial], tstop_inds[trial]
 
         arr_t, pos_t = arr[firstI:lastI, :], pos[firstI:lastI]
+
         if perm:  # circularly permute if desired
-            pos_t = np.roll(pos_t, np.random.randint(pos_t.shape[0]))
+            ## shift by a minumum of 1 s (15 samples at 15 Hz), maximum length of the trial
+            pos_t = np.roll(pos_t, np.random.randint(15,high=pos_t.shape[0]))
+            #arr_t = np.roll(arr_t, np.random.randint(80,high=arr_t.shape[0]),axis=0)
 
         # average within spatial bins
         for b, (edge1, edge2) in enumerate(zip(bin_edges[:-1], bin_edges[1:])):
             if np.where((pos_t > edge1) & (pos_t <= edge2))[0].shape[0] > 0:
-                if sum:
+                if use_sum:
                     trial_mat[trial, b] = np.nansum(arr_t[(pos_t > edge1) & (pos_t <= edge2), :], axis=0)
                 else:
                     trial_mat[trial, b] = np.nanmean(arr_t[(pos_t > edge1) & (pos_t <= edge2), :], axis=0)
                 # occ_mat[trial, b] = np.where((pos_t > edge1) & (pos_t <= edge2))[0].shape[0]
+                ## Counts the samples where the mouse was within the position bin and neural activity was not nan
                 occ_mat[trial, b] = (1-np.isnan(arr_t[(pos_t > edge1) & (pos_t <= edge2),0])).sum()
             else:
                 pass
-
+        
     if impute_nans:
-
-
         # while np.isnan(trial_mat).sum()>0:
         for trial in range(trial_mat.shape[0]):
             _trial_mat = np.squeeze(trial_mat[trial,:,:])
@@ -90,7 +92,6 @@ def trial_matrix(arr_in, pos_in, tstart_inds, tstop_inds, bin_size=10, min_pos =
                 # _trial_mat[nan_inds] = np.nanmean(_trial_mat, axis=0, keepdims=True)
                 _trial_mat = knn_imp.fit_transform(_trial_mat[:,np.newaxis])
                 trial_mat[trial, :] = _trial_mat[:,np.newaxis]
-
 
 
     if mat_only:
@@ -172,10 +173,10 @@ def place_cells_calc(C, position, tstart_inds,
     p = np.ones([C.shape[1],])
     for cell in range(C.shape[1]):
         p[cell] = (SI[cell] <= SI_perms[:,cell]).sum()/nperms
-    masks = p<=pthr
+    masks = p<pthr
 
     if output_shuffle:
-        return masks, SI, p, perm_trial_mat
+        return masks, SI, p, perm_trial_mat, SI_perms
     else:
         return masks, SI, p
 
