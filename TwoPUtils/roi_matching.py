@@ -248,26 +248,42 @@ def align_stack(ref_img, frames, ops):
         maskSlope=ops['spatial_taper'] if ops['1Preg'] else 3 * ops['smooth_sigma'],
     )
 
-    cfRefImg = rigid.phasecorr_reference(
-        refImg=ref_img,
-        smooth_sigma=ops['smooth_sigma'],
-        pad_fft=ops['pad_fft'],
-    )
+    try:
+        cfRefImg = rigid.phasecorr_reference(
+            refImg=ref_img,
+            smooth_sigma=ops['smooth_sigma'],
+            pad_fft=ops['pad_fft'],
+        )
+    except: # if suite2p version no longer uses pad_fft
+        cfRefImg = rigid.phasecorr_reference(
+            refImg=ref_img,
+            smooth_sigma=ops['smooth_sigma'],
+        )
 
     if ops.get('nonrigid'):
         if 'yblock' not in ops:
             ops['yblock'], ops['xblock'], ops['nblocks'], ops['block_size'], ops[
                 'NRsm'] = nonrigid.make_blocks(Ly=ops['Ly'], Lx=ops['Lx'], block_size=ops['block_size'])
 
-        maskMulNR, maskOffsetNR, cfRefImgNR = nonrigid.phasecorr_reference(
-            refImg0=ref_img,
-            maskSlope=ops['spatial_taper'] if ops['1Preg'] else 3 * ops['smooth_sigma'],
-            # slope of taper mask at the edges
-            smooth_sigma=ops['smooth_sigma'],
-            yblock=ops['yblock'],
-            xblock=ops['xblock'],
-            pad_fft=ops['pad_fft'],
-        )
+        try:
+            maskMulNR, maskOffsetNR, cfRefImgNR = nonrigid.phasecorr_reference(
+                refImg0=ref_img,
+                maskSlope=ops['spatial_taper'] if ops['1Preg'] else 3 * ops['smooth_sigma'],
+                # slope of taper mask at the edges
+                smooth_sigma=ops['smooth_sigma'],
+                yblock=ops['yblock'],
+                xblock=ops['xblock'],
+                pad_fft=ops['pad_fft'],
+            )
+        except:
+            maskMulNR, maskOffsetNR, cfRefImgNR = nonrigid.phasecorr_reference(
+                refImg0=ref_img,
+                maskSlope=ops['spatial_taper'] if ops['1Preg'] else 3 * ops['smooth_sigma'],
+                # slope of taper mask at the edges
+                smooth_sigma=ops['smooth_sigma'],
+                yblock=ops['yblock'],
+                xblock=ops['xblock'],
+            )
     ###
 
     fsmooth = frames.copy().astype(np.float32)
@@ -355,6 +371,46 @@ def get_com_from_roistack(roistack):
     for ind in range(roistack.shape[0]):
         com[ind, :] = np.argwhere(roistack[ind, :, :]).mean(axis=0)
     return com
+
+
+def common_rois(roi_matches, inds):
+    """
+    Find rois that are common to all day indices specified in inds
+    
+    :param roi_matches: result of pairwise roi matching, i.e. ROIaligner.match_inds
+    :param inds: indices of days in project sessions_dict (0-indexed)
+    :return: common rois: 1st row contains ref ROIs (1st session),
+            subsequent rows contain the matching target ROIs of the ref ROIs,
+            aligned columnwise
+    """
+    # set reference as the first index given
+    ref = roi_matches[inds[0]]
+    ref_common_rois = []
+
+    for i, targ_ind in enumerate(inds[1:]):
+
+        #         targ = roi_matches[targ_ind][inds[0]]
+        if i == 0:
+
+            ref_common_rois = set(ref[targ_ind]['ref_inds'])
+        else:
+            ref_common_rois = ref_common_rois & set(ref[targ_ind]['ref_inds'])
+
+        # find cells that are in reference match list each time
+    ref_common_rois = list(ref_common_rois)
+
+    # find matching indices
+    common_roi_mapping = np.zeros([len(inds), len(ref_common_rois)]) * np.nan
+    common_roi_mapping[0, :] = ref_common_rois
+    for i, roi in enumerate(ref_common_rois):
+        for j, targ_ind in enumerate(inds[1:]):
+            #             print(j)
+            ind = np.argwhere(ref[targ_ind]['ref_inds'] == roi)[0][0]
+            #             print(j,roi,ind)
+            common_roi_mapping[j + 1, i] = ref[targ_ind]['targ_inds'][ind]
+
+    return common_roi_mapping.astype(np.int)
+
 
 def plot_roi_matches(sa):
     for ref_cell, targ_cells in sa.common_rois_all_sessions.items():

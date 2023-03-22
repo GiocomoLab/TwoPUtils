@@ -305,6 +305,7 @@ class Session(SessionInfo, ABC):
         self.timeseries = {}
         self.trial_matrices = {}
         self.iscell = []
+        self.plane_per_cell = np.empty((0,),dtype=float)
         self.s2p_ops = []
         self.s2p_stats = []
 
@@ -340,8 +341,8 @@ class Session(SessionInfo, ABC):
                           frames=None, use_iscell=True):
 
         if self.n_planes > 1:
+            print(f"Multiplane processing for {self.n_planes} planes")
             plane = "combined"
-            print("multiple planes functionality not added in yet, assuming 1 plane")
         else:
             plane = "plane0"
 
@@ -352,6 +353,7 @@ class Session(SessionInfo, ABC):
         if frames is None:
             frames = slice(0, self.s2p_ops['nframes'])
 
+        # Get iscell
         if custom_iscell in (None, False):
             default_iscell_path = os.path.join(self.s2p_path, plane, 'iscell.npy')
             if os.path.exists(default_iscell_path):
@@ -369,8 +371,8 @@ class Session(SessionInfo, ABC):
             elif os.path.splitext(custom_iscell)[1] == '.csv':
                 self.iscell = pd.read_csv(custom_iscell)
             else:
-                raise ValueError("custom_iscell must be a .npy or .csv file")
-
+                raise ValueError("custom_iscell must be a .npy or .csv file")        
+        
         try:
             self.s2p_stats = np.load(os.path.join(self.s2p_path, plane, 'stats.npy'), allow_pickle=True)#[self.iscell[:,0]>0]
         except:
@@ -378,26 +380,81 @@ class Session(SessionInfo, ABC):
 
         if use_iscell:
             self.s2p_stats = self.s2p_stats[self.iscell[:,0]>0]
+        
+        # If multi-plane, iterate through planes to:
+        # 1) Get plane indices per cell
+        # 2) Concatenate timeseries per cell per plane across rows 
+        
+        if self.n_planes > 1:
+            plane_dirs = glob(os.path.join(self.s2p_path, 'plane*'))
+            ts_per_plane = {}
+            plane_start_ind = 0
+            
+            for i,plane_dir in enumerate(plane_dirs):
+                ts_per_plane[i] = {}
+                
+                # 1) Get plane indices per cell
+                
+                iscell_i = np.load(os.path.join(plane_dir,"iscell.npy"),allow_pickle=True)
+                print(f"this plane is shape {iscell_i.shape}")
+                # if we curated on combined, iscell per plane will not be updated!
+                # therefore we use a chunk of the combined iscell                
+                iscell_i = self.iscell[plane_start_ind:plane_start_ind+iscell_i.shape[0]]
+                plane_start_ind = plane_start_ind + iscell_i.shape[0]                    
+                
+                n_cells = np.sum((iscell_i[:, 0] > 0)*1)
+                print(f"{n_cells} cells in plane {i}")                    
+                self.plane_per_cell = np.append(self.plane_per_cell,np.ones(n_cells,)*i)
 
-        ts_to_pull = {}
-        for ts in which_ts:
-            ts_path = os.path.join(self.s2p_path, plane, "%s.npy" % ts)
-            if os.path.exists(ts_path):
-                ts_to_pull[ts] = ts_path
-        self.add_timeseries_from_file(frames = frames, **ts_to_pull)
-        for ts_name in ts_to_pull.keys():
-            assert self.timeseries[ts_name].shape[1] == self.vr_data.shape[0],\
-                "%s must be the same length as vr_data" % k
-            if use_iscell:
-                self.timeseries[ts_name] = self.timeseries[ts_name][self.iscell[:, 0] > 0, :]
-            else:
-                pass
+                # 2) For each timeseries type, load plane timeseries to concatenate
+                ts_to_pull = {}
+                for ts in which_ts:
+                    ts_path = os.path.join(plane_dir, "%s.npy" % ts)
+                    ts_per_plane[i].update({ts : np.empty((0,0),dtype=float)})
+                    if os.path.exists(ts_path):
+                        ts_to_pull[ts] = ts_path
 
+                for ts_name in ts_to_pull.keys():
+                    load_ts = np.load(ts_to_pull[ts_name],allow_pickle=True)
+                    if frames is not None:
+                        load_ts = load_ts[:,frames]
+                        
+                    assert load_ts.shape[1] == self.vr_data.shape[0],\
+                        "%s must be the same length as vr_data" % ts_name
+                    # Keep curated cells
+                    if use_iscell:
+                        ts_per_plane[i][ts_name] = load_ts[iscell_i[:, 0] > 0, :]
+                    else:
+                        pass
+            
+            print("Concatenating timeseries across planes...")
+            for ts in ts_to_pull.keys():
+                self.timeseries[ts] = np.concatenate([ts_per_plane[p][ts] for p in range(self.n_planes)], axis=0)
+
+        # If single plane:
+        else:
+            self.plane_per_cell = np.zeros(self.iscell.shape[0],)
+            
+            ts_to_pull = {}
+            for ts in which_ts:
+                ts_path = os.path.join(self.s2p_path, plane, "%s.npy" % ts)
+                if os.path.exists(ts_path):
+                    ts_to_pull[ts] = ts_path
+            self.add_timeseries_from_file(frames = frames, **ts_to_pull)
+            for ts_name in ts_to_pull.keys():
+                assert self.timeseries[ts_name].shape[1] == self.vr_data.shape[0],\
+                    "%s must be the same length as vr_data" % ts_name
+                if use_iscell:
+                    self.timeseries[ts_name] = self.timeseries[ts_name][self.iscell[:, 0] > 0, :]
+                else:
+                    pass
+
+                
     def add_timeseries(self, frames = None, **kwargs):
         for k, v in kwargs.items():
             if self.vr_data is not None:
                 if len(v.shape) < 2:
-                    v = v[np.newaxis, :]
+                    v = np.array(v)[np.newaxis, :]
 
                 if frames is not None:
                     v = v[:,frames]
