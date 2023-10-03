@@ -373,7 +373,7 @@ def get_com_from_roistack(roistack):
     return com
 
 
-def common_rois(roi_matches, inds):
+def common_rois(roi_matches, inds, return_iou=False):
     """
     Find rois that are common to all day indices specified in inds
     
@@ -401,6 +401,7 @@ def common_rois(roi_matches, inds):
 
     # find matching indices
     common_roi_mapping = np.zeros([len(inds), len(ref_common_rois)]) * np.nan
+    iou_mapping = np.zeros([len(inds), len(ref_common_rois)]) * np.nan
     common_roi_mapping[0, :] = ref_common_rois
     for i, roi in enumerate(ref_common_rois):
         for j, targ_ind in enumerate(inds[1:]):
@@ -408,8 +409,13 @@ def common_rois(roi_matches, inds):
             ind = np.argwhere(ref[targ_ind]['ref_inds'] == roi)[0][0]
             #             print(j,roi,ind)
             common_roi_mapping[j + 1, i] = ref[targ_ind]['targ_inds'][ind]
+            iou_mapping[j+1, i] = ref[targ_ind]['iou'][ind]
 
-    return common_roi_mapping.astype(np.int)
+    # whether to return intersection-over-union of the match
+    if return_iou:
+        return common_roi_mapping.astype(np.int), iou_mapping
+    else:
+        return common_roi_mapping.astype(np.int)
 
 
 def plot_roi_matches(sa):
