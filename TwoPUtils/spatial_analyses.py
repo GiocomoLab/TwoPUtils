@@ -10,7 +10,8 @@ from . import utilities as u
 
 def trial_matrix(arr_in, pos_in, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
                  max_pos=450, speed=None, speed_thr=2, perm=False,
-                 mat_only=False, impute_nans = False, use_sum=False):
+                 mat_only=False, impute_nans = False, use_sum=False,
+                only_spatial_binning = False):
     """
 
     :param arr: timepoints x anything array to be put into trials x positions format
@@ -49,33 +50,58 @@ def trial_matrix(arr_in, pos_in, tstart_inds, tstop_inds, bin_size=10, min_pos =
     if len(arr.shape) < 2:
         arr = arr[:, np.newaxis]
         # arr = np.expand_dims(arr, axis=1)
+    
+    if not only_spatial_binning:
+        trial_mat = np.zeros([int(ntrials), len(bin_edges) - 1, arr.shape[1]])
+        trial_mat[:] = np.nan
+        occ_mat = np.zeros([int(ntrials), len(bin_edges) - 1])
+        for trial in range(int(ntrials)):  # for each trial
+            # get trial indices
+            firstI, lastI = tstart_inds[trial], tstop_inds[trial]
 
-    trial_mat = np.zeros([int(ntrials), len(bin_edges) - 1, arr.shape[1]])
-    trial_mat[:] = np.nan
-    occ_mat = np.zeros([int(ntrials), len(bin_edges) - 1])
-    for trial in range(int(ntrials)):  # for each trial
-        # get trial indices
-        firstI, lastI = tstart_inds[trial], tstop_inds[trial]
+            arr_t, pos_t = arr[firstI:lastI, :], pos[firstI:lastI]
 
-        arr_t, pos_t = arr[firstI:lastI, :], pos[firstI:lastI]
+            if perm:  # circularly permute if desired
+                ## shift by a minumum of 1 s (15 samples at 15 Hz), maximum length of the trial
+                pos_t = np.roll(pos_t, np.random.randint(15,high=pos_t.shape[0]))
+                #arr_t = np.roll(arr_t, np.random.randint(80,high=arr_t.shape[0]),axis=0)
 
+            # average within spatial bins
+            for b, (edge1, edge2) in enumerate(zip(bin_edges[:-1], bin_edges[1:])):
+                if np.where((pos_t > edge1) & (pos_t <= edge2))[0].shape[0] > 0:
+                    if use_sum:
+                        trial_mat[trial, b] = np.nansum(arr_t[(pos_t > edge1) & (pos_t <= edge2), :], axis=0)
+                    else:
+                        trial_mat[trial, b] = np.nanmean(arr_t[(pos_t > edge1) & (pos_t <= edge2), :], axis=0)
+                    # occ_mat[trial, b] = np.where((pos_t > edge1) & (pos_t <= edge2))[0].shape[0]
+                    ## Counts the samples where the mouse was within the position bin and neural activity was not nan
+                    occ_mat[trial, b] = (1-np.isnan(arr_t[(pos_t > edge1) & (pos_t <= edge2),0])).sum()
+                else:
+                    pass
+    else:
+        trial_mat = np.zeros([len(bin_edges) - 1, arr.shape[1]])
+        trial_mat[:] = np.nan
+        occ_mat = np.zeros([len(bin_edges) - 1, 1])
+        
         if perm:  # circularly permute if desired
             ## shift by a minumum of 1 s (15 samples at 15 Hz), maximum length of the trial
-            pos_t = np.roll(pos_t, np.random.randint(15,high=pos_t.shape[0]))
+            pos = np.roll(pos, np.random.randint(15,high=pos.shape[0]))
             #arr_t = np.roll(arr_t, np.random.randint(80,high=arr_t.shape[0]),axis=0)
 
         # average within spatial bins
         for b, (edge1, edge2) in enumerate(zip(bin_edges[:-1], bin_edges[1:])):
-            if np.where((pos_t > edge1) & (pos_t <= edge2))[0].shape[0] > 0:
+            if np.where((pos > edge1) & (pos <= edge2))[0].shape[0] > 0:
                 if use_sum:
-                    trial_mat[trial, b] = np.nansum(arr_t[(pos_t > edge1) & (pos_t <= edge2), :], axis=0)
+                    trial_mat[b,:] = np.nansum(arr[(pos > edge1) & (pos <= edge2), :], axis=0)
                 else:
-                    trial_mat[trial, b] = np.nanmean(arr_t[(pos_t > edge1) & (pos_t <= edge2), :], axis=0)
+                    trial_mat[b, :] = np.nanmean(arr[(pos > edge1) & (pos <= edge2), :], axis=0)
                 # occ_mat[trial, b] = np.where((pos_t > edge1) & (pos_t <= edge2))[0].shape[0]
                 ## Counts the samples where the mouse was within the position bin and neural activity was not nan
-                occ_mat[trial, b] = (1-np.isnan(arr_t[(pos_t > edge1) & (pos_t <= edge2),0])).sum()
+                occ_mat[b] = (1-np.isnan(arr[(pos > edge1) & (pos <= edge2),0])).sum()
             else:
                 pass
+
+        
         
     if impute_nans:
 
@@ -88,8 +114,10 @@ def trial_matrix(arr_in, pos_in, tstart_inds, tstop_inds, bin_size=10, min_pos =
 
     if mat_only:
         return np.squeeze(trial_mat)
-    else:
+    elif not mat_only and not only_spatial_binning:
         return np.squeeze(trial_mat), np.squeeze(occ_mat / (occ_mat.sum(axis=1)[:, np.newaxis] + 1E-3)), bin_edges, bin_centers
+    elif not mat_only and only_spatial_binning:
+        return np.squeeze(trial_mat), (occ_mat / (occ_mat.sum() + 1E-3)).T, bin_edges, bin_centers
 
 
 def spatial_info(frmap,occupancy):
@@ -97,7 +125,7 @@ def spatial_info(frmap,occupancy):
     inputs: frmap - [spatial bins, cells] spatially binned activity rate for each cell
             occupancy - [spatial bins,] fractional occupancy of each spatial bin
     outputs: SI - [cells,] spatial information for each cell '''
-
+    
     ### vectorizing
     P_map = frmap - np.amin(frmap)+.001 # make sure there's no negative activity rates
     # print((P_map<0).sum())
@@ -108,10 +136,27 @@ def spatial_info(frmap,occupancy):
 
     return SI
 
+def spatial_info_tank(ts,frmap,occ,speed=None):
+    
+    arr = np.copy(ts)
+    arr[speed < 2, :] = np.nan
+    arr = arr - np.nanmin(arr)+.001
+    # f_bar = np.nanmean(arr,axis=0, keepdims=True)
+    
+    f_i = frmap - np.amin(frmap)+.001  # just make all values non-negative
+    # f_bar = np.nanmean(f_i, axis=0, keepdims=True)
+    f_bar = (f_i * occ[:,np.newaxis]).sum(axis=0,keepdims=True)
+    
+    SI = np.nansum((occ[:, np.newaxis] * f_i) *
+                    np.log2(f_i / f_bar), axis=0)
+    
+    
+    return SI
+
 
 def place_cells_calc(C, position, tstart_inds,
                      teleport_inds, pthr = .05, speed=None, nperms = 100, 
-                     output_shuffle = False, **kwargs):
+                     output_shuffle = False, use_tank_method=False, **kwargs):
     '''Find cells that have significant spatial information info. Use bootstrapped estimate of each cell's
     spatial information to minimize effect of outlier trials
     inputs:C - [timepoints, neurons] activity rate/dFF over whole session
@@ -142,12 +187,20 @@ def place_cells_calc(C, position, tstart_inds,
 
     occ = occ_trial_mat.sum(axis=0) + 1E-3
     occ /= occ.sum()
-    SI = spatial_info(np.nanmean(C_trial_mat,axis=0),occ)
+    if use_tank_method:
+        SI = spatial_info_tank(C, np.nanmean(C_trial_mat,axis=0),occ, speed=speed)
+    elif 'only_spatial_binning' in kwargs.keys():
+        if kwargs['only_spatial_binning']:
+            SI = spatial_info(C_trial_mat,occ)
+        else:
+            SI = spatial_info(np.nanmean(C_trial_mat,axis=0),occ)
+    else:    
+        SI = spatial_info(np.nanmean(C_trial_mat,axis=0),occ)
     # SI = spatinfo_per_morph(C_trial_mat,occ_trial_mat)
 
     SI_perms = np.zeros([nperms,C.shape[1]])
     if output_shuffle:
-        perm_trial_mat = np.zeros((C_trial_mat.shape[0],C_trial_mat.shape[1],C_trial_mat.shape[2],nperms))
+        perm_trial_mat = np.zeros(np.hstack([[i for i in C_trial_mat.shape],[nperms]]))
 
     for perm in range(nperms):
         if perm%100 == 0:
@@ -155,12 +208,23 @@ def place_cells_calc(C, position, tstart_inds,
         C_trial_mat, occ_trial_mat, _,__ = trial_matrix(C,position,tstart_inds,teleport_inds,speed = speed,perm=True,**kwargs)
         occ = occ_trial_mat.sum(axis=0) + 1E-3
         occ /= occ.sum()
-        _SI_perm =  spatial_info(np.nanmean(C_trial_mat,axis=0),occ)
+        if use_tank_method:
+            _SI_perm = spatial_info_tank(C, np.nanmean(C_trial_mat,axis=0),occ, speed=speed)
+        elif 'only_spatial_binning' in kwargs.keys():
+            if kwargs['only_spatial_binning']:
+                _SI_perm = spatial_info(C_trial_mat,occ)
+            else:
+                _SI_perm =  spatial_info(np.nanmean(C_trial_mat,axis=0),occ)
+        else:
+            _SI_perm =  spatial_info(np.nanmean(C_trial_mat,axis=0),occ)
 
         SI_perms[perm,:]=_SI_perm
         
         if output_shuffle:
-            perm_trial_mat[:,:,:,perm] = C_trial_mat
+            if len(perm_trial_mat.shape)==4:
+                perm_trial_mat[:,:,:,perm] = C_trial_mat
+            else:
+                perm_trial_mat[:,:,perm] = C_trial_mat
 
     p = np.ones([C.shape[1],])
     for cell in range(C.shape[1]):
