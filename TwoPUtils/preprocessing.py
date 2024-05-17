@@ -289,15 +289,11 @@ def vr_align_to_2P_thor(vr_dataframe,
         mask = tpu.preprocessing._ttl_check(unity_ttl_times)
         print('bad ttls', (~mask).sum()) #mask.sum(): these are not bad ttls, they are times to keep?
         unity_ttl_times = unity_ttl_times[mask]
-        # frames = frames[mask]
-        # lines = lines[mask]
-
 
     numVRFrames = unity_ttl_times.shape[0]
 
-    print('numVRFrames', numVRFrames)
-    print('numScanFrames', n_frames)
-
+    # print('numVRFrames', numVRFrames)
+    # print('numScanFrames', n_frames)
 
     # create empty pandas dataframe to store calcium aligned data
     ca_df = pd.DataFrame(columns=vr_dataframe.columns, index=np.arange(int(n_frames/n_planes)))

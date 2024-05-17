@@ -127,7 +127,7 @@ class SessionInfo:
             "Expected directory tree for 2P Data "
             "basedir_2P\\mouse\\date_folder\\scene\\scene_sessionnumber_scannumber.sbx\mat")
         print(
-            "Thorlabs B scope and Bruker compatibility to be added"
+            "Bruker compatibility to be added; Thorlabs B scope compatibility in beta"
         )
         if self.basedir_VR is None:
             print("What is the base directory for your VR data?")
@@ -240,9 +240,16 @@ class SessionInfo:
 
 
         elif self.scanner == "ThorLabs":
+            if self.scanheader_file is None:
+                # find paths to the ThorImage xml file
+                self.scanheader_file = os.path.join(self.basedir, "Experiment.xml")
             if not os.path.exists(self.scanheader_file):
                 if self.verbose:
                     warnings.warn("Could not find scan header file at %s" % self.scanheader_file)
+            
+            if self.scan_file is None:       
+                self.scan_file = glob(os.path.join(self.basedir, 'Image_scan*.tif'))[0]
+
             if not os.path.exists(self.scan_file):
                 if self.verbose:
                     warnings.warn("Could not find scan file at %s" % self.scan_file)
@@ -333,11 +340,10 @@ class Session(SessionInfo, ABC):
                 if self.scanner == "NLW":
                     self.vr_data = pp.vr_align_to_2P(df, self.scan_info, run_ttl_check = run_ttl_check, n_planes=self.n_planes)
                 elif self.scanner == "ThorLabs":
-                    ## To-do: move this to twoputils with better parameterization
-                    from InVivoDA_analyses import thorIO
-                    thor_metadata = thorIO.ThorHaussIO(self.basedir, chan='A', xml_path=None, 
-                          sync_path= self.basedir + '_sync',
-                             width_idx=4, maxtime=None)
+                   
+                    thor_metadata = thorlabs_utils.ThorHaussIO(self.basedir, chan='A', xml_path=None, 
+                          sync_path= self.basedir + '_sync')
+                    print('Only looking for one channel so far...')
                     ##
                     ttl_times = thorlabs_utils.extract_thor_sync_ttls(thor_metadata)
                     self.vr_data = pp.vr_align_to_2P_thor(df, 
