@@ -10,8 +10,7 @@ from . import utilities as u
 
 def trial_matrix(arr_in, pos_in, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
                  max_pos=450, speed=None, speed_thr=2, perm=False,
-                 mat_only=False, impute_nans = False, use_sum=False,
-                only_spatial_binning = False):
+                 mat_only=False, impute_nans = False, use_sum=False):
     """
 
     :param arr: timepoints x anything array to be put into trials x positions format
@@ -49,59 +48,35 @@ def trial_matrix(arr_in, pos_in, tstart_inds, tstop_inds, bin_size=10, min_pos =
     # if arr is a vector, expand dimension
     if len(arr.shape) < 2:
         arr = arr[:, np.newaxis]
-        # arr = np.expand_dims(arr, axis=1)
-    
-    if not only_spatial_binning:
-        trial_mat = np.zeros([int(ntrials), len(bin_edges) - 1, arr.shape[1]])
-        trial_mat[:] = np.nan
-        occ_mat = np.zeros([int(ntrials), len(bin_edges) - 1])
-        for trial in range(int(ntrials)):  # for each trial
-            # get trial indices
-            firstI, lastI = tstart_inds[trial], tstop_inds[trial]
-
-            arr_t, pos_t = arr[firstI:lastI, :], pos[firstI:lastI]
-
-            if perm:  # circularly permute if desired
-                ## shift by a minumum of 1 s (15 samples at 15 Hz), maximum length of the trial
-                pos_t = np.roll(pos_t, np.random.randint(15,high=pos_t.shape[0]))
-                #arr_t = np.roll(arr_t, np.random.randint(80,high=arr_t.shape[0]),axis=0)
-
-            # average within spatial bins
-            for b, (edge1, edge2) in enumerate(zip(bin_edges[:-1], bin_edges[1:])):
-                if np.where((pos_t > edge1) & (pos_t <= edge2))[0].shape[0] > 0:
-                    if use_sum:
-                        trial_mat[trial, b] = np.nansum(arr_t[(pos_t > edge1) & (pos_t <= edge2), :], axis=0)
-                    else:
-                        trial_mat[trial, b] = np.nanmean(arr_t[(pos_t > edge1) & (pos_t <= edge2), :], axis=0)
-                    # occ_mat[trial, b] = np.where((pos_t > edge1) & (pos_t <= edge2))[0].shape[0]
-                    ## Counts the samples where the mouse was within the position bin and neural activity was not nan
-                    occ_mat[trial, b] = (1-np.isnan(arr_t[(pos_t > edge1) & (pos_t <= edge2),0])).sum()
-                else:
-                    pass
-    else:
-        trial_mat = np.zeros([len(bin_edges) - 1, arr.shape[1]])
-        trial_mat[:] = np.nan
-        occ_mat = np.zeros([len(bin_edges) - 1, 1])
         
+    
+    trial_mat = np.zeros([int(ntrials), len(bin_edges) - 1, arr.shape[1]])
+    trial_mat[:] = np.nan
+    occ_mat = np.zeros([int(ntrials), len(bin_edges) - 1])
+    for trial in range(int(ntrials)):  # for each trial
+        # get trial indices
+        firstI, lastI = tstart_inds[trial], tstop_inds[trial]
+
+        arr_t, pos_t = arr[firstI:lastI, :], pos[firstI:lastI]
+
         if perm:  # circularly permute if desired
             ## shift by a minumum of 1 s (15 samples at 15 Hz), maximum length of the trial
-            pos = np.roll(pos, np.random.randint(15,high=pos.shape[0]))
+            pos_t = np.roll(pos_t, np.random.randint(15,high=pos_t.shape[0]))
             #arr_t = np.roll(arr_t, np.random.randint(80,high=arr_t.shape[0]),axis=0)
 
         # average within spatial bins
         for b, (edge1, edge2) in enumerate(zip(bin_edges[:-1], bin_edges[1:])):
-            if np.where((pos > edge1) & (pos <= edge2))[0].shape[0] > 0:
+            if np.where((pos_t > edge1) & (pos_t <= edge2))[0].shape[0] > 0:
                 if use_sum:
-                    trial_mat[b,:] = np.nansum(arr[(pos > edge1) & (pos <= edge2), :], axis=0)
+                    trial_mat[trial, b] = np.nansum(arr_t[(pos_t > edge1) & (pos_t <= edge2), :], axis=0)
                 else:
-                    trial_mat[b, :] = np.nanmean(arr[(pos > edge1) & (pos <= edge2), :], axis=0)
+                    trial_mat[trial, b] = np.nanmean(arr_t[(pos_t > edge1) & (pos_t <= edge2), :], axis=0)
                 # occ_mat[trial, b] = np.where((pos_t > edge1) & (pos_t <= edge2))[0].shape[0]
                 ## Counts the samples where the mouse was within the position bin and neural activity was not nan
-                occ_mat[b] = (1-np.isnan(arr[(pos > edge1) & (pos <= edge2),0])).sum()
+                occ_mat[trial, b] = (1-np.isnan(arr_t[(pos_t > edge1) & (pos_t <= edge2),0])).sum()
             else:
                 pass
-
-        
+    
         
     if impute_nans:
 
@@ -114,10 +89,8 @@ def trial_matrix(arr_in, pos_in, tstart_inds, tstop_inds, bin_size=10, min_pos =
 
     if mat_only:
         return np.squeeze(trial_mat)
-    elif not mat_only and not only_spatial_binning:
+    else:
         return np.squeeze(trial_mat), np.squeeze(occ_mat / (occ_mat.sum(axis=1)[:, np.newaxis] + 1E-3)), bin_edges, bin_centers
-    elif not mat_only and only_spatial_binning:
-        return np.squeeze(trial_mat), (occ_mat / (occ_mat.sum() + 1E-3)).T, bin_edges, bin_centers
 
 
 def spatial_info(frmap,occupancy):
@@ -189,11 +162,6 @@ def place_cells_calc(C, position, tstart_inds,
     occ /= occ.sum()
     if use_tank_method:
         SI = spatial_info_tank(C, np.nanmean(C_trial_mat,axis=0),occ, speed=speed)
-    elif 'only_spatial_binning' in kwargs.keys():
-        if kwargs['only_spatial_binning']:
-            SI = spatial_info(C_trial_mat,occ)
-        else:
-            SI = spatial_info(np.nanmean(C_trial_mat,axis=0),occ)
     else:    
         SI = spatial_info(np.nanmean(C_trial_mat,axis=0),occ)
     # SI = spatinfo_per_morph(C_trial_mat,occ_trial_mat)
@@ -210,11 +178,6 @@ def place_cells_calc(C, position, tstart_inds,
         occ /= occ.sum()
         if use_tank_method:
             _SI_perm = spatial_info_tank(C, np.nanmean(C_trial_mat,axis=0),occ, speed=speed)
-        elif 'only_spatial_binning' in kwargs.keys():
-            if kwargs['only_spatial_binning']:
-                _SI_perm = spatial_info(C_trial_mat,occ)
-            else:
-                _SI_perm =  spatial_info(np.nanmean(C_trial_mat,axis=0),occ)
         else:
             _SI_perm =  spatial_info(np.nanmean(C_trial_mat,axis=0),occ)
 
