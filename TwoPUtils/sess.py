@@ -9,6 +9,7 @@ import scipy as sp
 import pandas as pd
 
 from .scanner_tools import sbx_utils
+from .scanner_tools import thorlabs_utils
 from . import preprocessing as pp
 from . import spatial_analyses
 
@@ -126,7 +127,7 @@ class SessionInfo:
             "Expected directory tree for 2P Data "
             "basedir_2P\\mouse\\date_folder\\scene\\scene_sessionnumber_scannumber.sbx\mat")
         print(
-            "Thorlabs B scope and Bruker compatibility to be added"
+            "Bruker compatibility to be added; Thorlabs B scope compatibility in beta"
         )
         if self.basedir_VR is None:
             print("What is the base directory for your VR data?")
@@ -239,7 +240,19 @@ class SessionInfo:
 
 
         elif self.scanner == "ThorLabs":
-            raise NotImplementedError
+            if self.scanheader_file is None:
+                # find paths to the ThorImage xml file
+                self.scanheader_file = os.path.join(self.basedir, "Experiment.xml")
+            if not os.path.exists(self.scanheader_file):
+                if self.verbose:
+                    warnings.warn("Could not find scan header file at %s" % self.scanheader_file)
+            
+            if self.scan_file is None:       
+                self.scan_file = glob(os.path.join(self.basedir, 'Image_scan*.tif'))[0]
+
+            if not os.path.exists(self.scan_file):
+                if self.verbose:
+                    warnings.warn("Could not find scan file at %s" % self.scan_file)
 
         elif self.scanner == "Bruker":
             raise NotImplementedError
@@ -326,8 +339,20 @@ class Session(SessionInfo, ABC):
                 # feed pandas array and scene name to alignment function
                 if self.scanner == "NLW":
                     self.vr_data = pp.vr_align_to_2P(df, self.scan_info, run_ttl_check = run_ttl_check, n_planes=self.n_planes)
+                elif self.scanner == "ThorLabs":
+                   
+                    thor_metadata = thorlabs_utils.ThorHaussIO(self.basedir, chan='A', xml_path=None, 
+                          sync_path= self.basedir + '_sync')
+                    print('Only looking for one channel so far...')
+                    ##
+                    ttl_times = thorlabs_utils.extract_thor_sync_ttls(thor_metadata)
+                    self.vr_data = pp.vr_align_to_2P_thor(df, 
+                        thor_metadata, 
+                        ttl_times, 
+                        run_ttl_check=False,
+                        n_planes = 1)
                 else:
-                    warnings.warn("VR alignment only implemented for Neurolabware at the moment")
+                    warnings.warn("VR alignment only implemented for Neurolabware and Thorlabs")
                     raise NotImplementedError
             else:
                 self.vr_data = df
@@ -492,6 +517,16 @@ class Session(SessionInfo, ABC):
                 _check_and_add_key(_ts)
         else:
             _check_and_add_key(ts_name)
+            
+    def add_trial_matrix_from_array(self,ts_name,array):
+        """
+        add a trial matrix that has been pre-computed outside the session class
+        :param ts_name: timeseries name to use as a key for the matrix
+        :array: pre-computed matrix
+        :return:
+        """
+        self.trial_matrices[ts_name] = array
+    
 
     def rm_timeseries(self,ts_name):
         if not isinstance(ts_name,list) or not isinstance(ts_name,tuple):

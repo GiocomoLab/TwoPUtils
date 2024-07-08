@@ -35,7 +35,7 @@ class ROIAligner:
         self.rigid_offsets = None
         self.nonrigid_offsets = None
 
-    def run_pairwise_matches(self, thresh=None):
+    def run_pairwise_matches(self, thresh=None, dist_thresh=10):
         """
         calculate matched ROIs for ref_sess vs each targ_sess
         :return:
@@ -49,7 +49,7 @@ class ROIAligner:
             targ_inds = [i for i in range(len(self.sess_list)) if i not in [ref_ind]]
             self.match_inds[ref_ind] = {}
             for targ_ind in targ_inds:
-                ref_match_inds, targ_match_inds, iou_match = self.match_session_pair(targ_ind,thresh=thresh)
+                ref_match_inds, targ_match_inds, iou_match = self.match_session_pair(targ_ind,thresh=thresh, dist_thresh=dist_thresh)
                 self.match_inds[ref_ind][targ_ind] = {'ref_inds': ref_match_inds, 'targ_inds': targ_match_inds, 'iou': iou_match}
 
 
@@ -67,7 +67,7 @@ class ROIAligner:
         self.frames, self.rigid_offsets, self.nonrigid_offsets = align_stack(
             ref_img, self.frames, reg_ops)
 
-    def match_session_pair(self, index, thresh=None):
+    def match_session_pair(self, index, thresh=None, dist_thresh=10):
         """
         Find matching ROI pairs for ref_sess and targ_sess[index]
 
@@ -77,6 +77,7 @@ class ROIAligner:
         :return:
         """
 
+        
         # make roi x Ly x Lx array of masks
         targ_roistack = make_roistack(self.sess_list[index].s2p_stats,
                                       self.sess_list[index].s2p_ops)
@@ -93,7 +94,7 @@ class ROIAligner:
 
         # reduce candidate matches for speed
         dist = np.linalg.norm(com_ref[:, np.newaxis, :] - com_targ[np.newaxis, :, :], ord=2, axis=-1)
-        candidates = dist < 10
+        candidates = dist < dist_thresh
 
         # calculate intersection over union (iou) for candidate matches
         iou = self.iou(self.ref_roistack, targ_roistack, candidates)
@@ -373,7 +374,7 @@ def get_com_from_roistack(roistack):
     return com
 
 
-def common_rois(roi_matches, inds):
+def common_rois(roi_matches, inds, return_iou=False):
     """
     Find rois that are common to all day indices specified in inds
     
@@ -401,6 +402,7 @@ def common_rois(roi_matches, inds):
 
     # find matching indices
     common_roi_mapping = np.zeros([len(inds), len(ref_common_rois)]) * np.nan
+    iou_mapping = np.zeros([len(inds), len(ref_common_rois)]) * np.nan
     common_roi_mapping[0, :] = ref_common_rois
     for i, roi in enumerate(ref_common_rois):
         for j, targ_ind in enumerate(inds[1:]):
@@ -408,8 +410,13 @@ def common_rois(roi_matches, inds):
             ind = np.argwhere(ref[targ_ind]['ref_inds'] == roi)[0][0]
             #             print(j,roi,ind)
             common_roi_mapping[j + 1, i] = ref[targ_ind]['targ_inds'][ind]
+            iou_mapping[j+1, i] = ref[targ_ind]['iou'][ind]
 
-    return common_roi_mapping.astype(np.int)
+    # whether to return intersection-over-union of the match
+    if return_iou:
+        return common_roi_mapping.astype(np.int), iou_mapping
+    else:
+        return common_roi_mapping.astype(np.int)
 
 
 def plot_roi_matches(sa):

@@ -48,8 +48,8 @@ def trial_matrix(arr_in, pos_in, tstart_inds, tstop_inds, bin_size=10, min_pos =
     # if arr is a vector, expand dimension
     if len(arr.shape) < 2:
         arr = arr[:, np.newaxis]
-        # arr = np.expand_dims(arr, axis=1)
-
+        
+    
     trial_mat = np.zeros([int(ntrials), len(bin_edges) - 1, arr.shape[1]])
     trial_mat[:] = np.nan
     occ_mat = np.zeros([int(ntrials), len(bin_edges) - 1])
@@ -76,6 +76,7 @@ def trial_matrix(arr_in, pos_in, tstart_inds, tstop_inds, bin_size=10, min_pos =
                 occ_mat[trial, b] = (1-np.isnan(arr_t[(pos_t > edge1) & (pos_t <= edge2),0])).sum()
             else:
                 pass
+    
         
     if impute_nans:
 
@@ -93,11 +94,16 @@ def trial_matrix(arr_in, pos_in, tstart_inds, tstop_inds, bin_size=10, min_pos =
 
 
 def spatial_info(frmap,occupancy):
-    '''calculate spatial information bits/spike
+    '''
+    calculate spatial information bits/spike, using method from e.g. Mao et al. McNaughton 2018 PNAS.
+
+    This method is more akin to the original Skaggs method when using deconvolved activity rate.
+
     inputs: frmap - [spatial bins, cells] spatially binned activity rate for each cell
             occupancy - [spatial bins,] fractional occupancy of each spatial bin
-    outputs: SI - [cells,] spatial information for each cell '''
-
+    outputs: SI - [cells,] spatial information for each cell
+    '''
+    
     ### vectorizing
     P_map = frmap - np.amin(frmap)+.001 # make sure there's no negative activity rates
     # print((P_map<0).sum())
@@ -108,10 +114,29 @@ def spatial_info(frmap,occupancy):
 
     return SI
 
+def spatial_info_tank(ts,frmap,occ,speed=None):
+
+    '''
+    For comparison, trying spatial info method from e.g. Gauthier & Tank 2018, designed for dF/F.
+    '''
+    
+    arr = np.copy(ts)
+    arr[speed < 2, :] = np.nan
+    arr = arr - np.nanmin(arr)+.001
+    
+    f_i = frmap - np.amin(frmap)+.001  # just make all values non-negative
+    f_bar = (f_i * occ[:,np.newaxis]).sum(axis=0,keepdims=True)
+    
+    SI = np.nansum((occ[:, np.newaxis] * f_i) *
+                    np.log2(f_i / f_bar), axis=0)
+    
+    
+    return SI
+
 
 def place_cells_calc(C, position, tstart_inds,
                      teleport_inds, pthr = .05, speed=None, nperms = 100, 
-                     output_shuffle = False, **kwargs):
+                     output_shuffle = False, use_tank_method=False, **kwargs):
     '''Find cells that have significant spatial information info. Use bootstrapped estimate of each cell's
     spatial information to minimize effect of outlier trials
     inputs:C - [timepoints, neurons] activity rate/dFF over whole session
@@ -124,6 +149,9 @@ def place_cells_calc(C, position, tstart_inds,
             speed - [timepoints,] or None; animal's speed at each timepoint. Used for filtering stationary
                 timepoints. If None, no filtering is performed
             nperms - number of permutations. Shuffling is performed within a trial. 
+            output_shuffle - whether to output the permuted trial matrices
+            use_tank_method - whether to use the "Tank lab" spatial information method; default False,
+                            we use the McNaughton spatial information method for deconvolved calcium activity.
     outputs:
             if output_shuffle:
                 masks - array of masks for cells with significant spatial info in each morph
@@ -142,12 +170,15 @@ def place_cells_calc(C, position, tstart_inds,
 
     occ = occ_trial_mat.sum(axis=0) + 1E-3
     occ /= occ.sum()
-    SI = spatial_info(np.nanmean(C_trial_mat,axis=0),occ)
+    if use_tank_method:
+        SI = spatial_info_tank(C, np.nanmean(C_trial_mat,axis=0),occ, speed=speed)
+    else:    
+        SI = spatial_info(np.nanmean(C_trial_mat,axis=0),occ)
     # SI = spatinfo_per_morph(C_trial_mat,occ_trial_mat)
 
     SI_perms = np.zeros([nperms,C.shape[1]])
     if output_shuffle:
-        perm_trial_mat = np.zeros((C_trial_mat.shape[0],C_trial_mat.shape[1],C_trial_mat.shape[2],nperms))
+        perm_trial_mat = np.zeros(np.hstack([[i for i in C_trial_mat.shape],[nperms]]))
 
     for perm in range(nperms):
         if perm%100 == 0:
@@ -155,12 +186,18 @@ def place_cells_calc(C, position, tstart_inds,
         C_trial_mat, occ_trial_mat, _,__ = trial_matrix(C,position,tstart_inds,teleport_inds,speed = speed,perm=True,**kwargs)
         occ = occ_trial_mat.sum(axis=0) + 1E-3
         occ /= occ.sum()
-        _SI_perm =  spatial_info(np.nanmean(C_trial_mat,axis=0),occ)
+        if use_tank_method:
+            _SI_perm = spatial_info_tank(C, np.nanmean(C_trial_mat,axis=0),occ, speed=speed)
+        else:
+            _SI_perm =  spatial_info(np.nanmean(C_trial_mat,axis=0),occ)
 
         SI_perms[perm,:]=_SI_perm
         
         if output_shuffle:
-            perm_trial_mat[:,:,:,perm] = C_trial_mat
+            if len(perm_trial_mat.shape)==4:
+                perm_trial_mat[:,:,:,perm] = C_trial_mat
+            else:
+                perm_trial_mat[:,:,perm] = C_trial_mat
 
     p = np.ones([C.shape[1],])
     for cell in range(C.shape[1]):
