@@ -94,10 +94,15 @@ def trial_matrix(arr_in, pos_in, tstart_inds, tstop_inds, bin_size=10, min_pos =
 
 
 def spatial_info(frmap,occupancy):
-    '''calculate spatial information bits/spike
+    '''
+    calculate spatial information bits/spike, using method from e.g. Mao et al. McNaughton 2018 PNAS.
+
+    This method is more akin to the original Skaggs method when using deconvolved activity rate.
+
     inputs: frmap - [spatial bins, cells] spatially binned activity rate for each cell
             occupancy - [spatial bins,] fractional occupancy of each spatial bin
-    outputs: SI - [cells,] spatial information for each cell '''
+    outputs: SI - [cells,] spatial information for each cell
+    '''
     
     ### vectorizing
     P_map = frmap - np.amin(frmap)+.001 # make sure there's no negative activity rates
@@ -110,14 +115,16 @@ def spatial_info(frmap,occupancy):
     return SI
 
 def spatial_info_tank(ts,frmap,occ,speed=None):
+
+    '''
+    For comparison, trying spatial info method from e.g. Gauthier & Tank 2018, designed for dF/F.
+    '''
     
     arr = np.copy(ts)
     arr[speed < 2, :] = np.nan
     arr = arr - np.nanmin(arr)+.001
-    # f_bar = np.nanmean(arr,axis=0, keepdims=True)
     
     f_i = frmap - np.amin(frmap)+.001  # just make all values non-negative
-    # f_bar = np.nanmean(f_i, axis=0, keepdims=True)
     f_bar = (f_i * occ[:,np.newaxis]).sum(axis=0,keepdims=True)
     
     SI = np.nansum((occ[:, np.newaxis] * f_i) *
@@ -142,6 +149,9 @@ def place_cells_calc(C, position, tstart_inds,
             speed - [timepoints,] or None; animal's speed at each timepoint. Used for filtering stationary
                 timepoints. If None, no filtering is performed
             nperms - number of permutations. Shuffling is performed within a trial. 
+            output_shuffle - whether to output the permuted trial matrices
+            use_tank_method - whether to use the "Tank lab" spatial information method; default False,
+                            we use the McNaughton spatial information method for deconvolved calcium activity.
     outputs:
             if output_shuffle:
                 masks - array of masks for cells with significant spatial info in each morph
