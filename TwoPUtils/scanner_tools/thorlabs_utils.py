@@ -15,7 +15,7 @@ from PIL import Image
 import tables
 
 
-def find_analog_square_wave(analog, max_voltage=1):
+def find_analog_square_wave(analog, max_voltage=None):
     """ 
     Finding leading (rising) edges of the sync pulse square wave
     after converting the analog signal to a binary
@@ -73,7 +73,8 @@ def extract_thor_sync_ttls(thor_metadata):
     # Find imaging times from TTLs
     scan_ttls = find_analog_square_wave(sync_data[0]['FrameOut'])
     scan_ttl_times = unity_time_vec[scan_ttls]
-    print('%d scan ttls vs. %d timestamps in scan metadata' % (scan_ttl_times.shape[0], thor_metadata.timing.shape[0]))
+    print('%d scan ttls vs. %d timestamps in scan metadata' % (scan_ttl_times.shape[0], 
+                                                               thor_metadata.timing.shape[0]))
     
     # Find Unity frame times from TTLs
     unity_ttls = find_analog_square_wave(sync_data[0]['UnitySync'])
