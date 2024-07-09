@@ -3,6 +3,9 @@ import os
 import h5py
 import numpy as np
 import scipy.io as spio
+# for cutting deadband
+import sbxreader
+
 
 
 def loadmat(filename):
@@ -170,6 +173,81 @@ def sbx2h5(filename, channel_i=-1, batch_size=1000, dataset="data", output_name=
                 f.flush()
                 k += batch_size
 
+    return h5fname
+
+def find_deadbands(filename):
+    # multiplane = False)
+    # this function is to find the deadband due to bidirectional recording
+    #  Didn't get to cut the dead row due to lack of undertand of the sbx data structure, should potential fix this though
+    f = sbxreader.sbx_memmap (filename + '.sbx')
+    if f.metadata["scanning_mode"] == 'bidirectional':
+        ndeadcols = f. ndeadcols
+    else:
+        ndeadcols = 0
+
+#    if multiplane == True
+#        colprofile = np.array(np.mean(tmpsbx[0][0][0], axis=1))
+#        ndeadrows = np.argmax(np.diff(colprofile)) + 1
+#    else:
+#        ndeadrows = 0
+
+    return ndeadcols
+
+    
+
+def sbx2h5_cutdb(filename, channel_i=-1, batch_size=1000, dataset="data", output_name=None, max_idx=None,
+           force_2chan=False):
+    info = loadmat(filename + '.mat')  # ['info']
+    if force_2chan:
+        nchan = 2
+    else:
+        nchan = info['nChan']
+    k = 0
+    if output_name is None:
+        h5fname = filename + '.h5'
+    else:
+        h5fname = output_name
+
+    if max_idx is None:
+        max_idx = info['max_idx']
+
+    base, last = os.path.split(h5fname)
+    os.makedirs(base, exist_ok=True)
+
+
+    with h5py.File(h5fname, 'w') as f:
+
+        if channel_i == -1:
+            dset = f.create_dataset(dataset, (int(max_idx) * nchan, int(info['sz'][0]/info['fov_repeats']), info['sz'][1]))
+            while k <= max_idx:  # info['max_idx']:
+                # print(k)
+                ndeadcols = find_deadbands(filename, scanning_mode = 'unidirectional')
+
+                data = sbxread(filename, k, batch_size)
+                data = np.transpose(data[:, ndeadcols:, :, :], axes=(0, 3, 2, 1))
+
+                print(k, min((k + batch_size, info['max_idx'])))
+                # channel 0
+                for chan in range(info['nChan']): # keep this loop as true info['nChan'] to avoid indexing error in data
+                    dset[k * nchan + chan:min(
+                        (nchan * (k + batch_size) + chan, nchan * info['max_idx'])):nchan, :,
+                    :] = np.squeeze(data[chan, :, :, :])
+
+                f.flush()
+                k += batch_size
+        else:
+            dset = f.create_dataset(dataset, (int(max_idx), int(info['sz'][0]/info['fov_repeats']), info['sz'][1]))
+            while k <= max_idx:  # info['max_idx']:
+                # print(k)
+                ndeadcols = find_deadbands(filename, scanning_mode = 'unidirectional')
+
+                data = sbxread(filename, k, batch_size)
+                data = np.transpose(data[channel_i, ndeadcols:, :, :], axes=(2, 1, 0))
+                print(k, min((k + batch_size, info['max_idx'])))
+                dset[k:min((k + batch_size, info['max_idx'])), :, :] = data
+                f.flush()
+                k += batch_size
+ 
     return h5fname
 
 
