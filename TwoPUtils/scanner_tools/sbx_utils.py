@@ -181,17 +181,18 @@ def find_deadbands(filename, multiplane = True):
     #  Didn't git to cut the dead row due to lack of undertand of the sbx data structure, should potential fix this though
     f = sbxreader.sbx_memmap (filename + '.sbx')
     if f.metadata["scanning_mode"] == 'bidirectional':
-        ndeadcols = f. ndeadcols+10
+        ndeadcols_l = f. ndeadcols+20
+        ndeadcols_r = 30
     else:
         ndeadcols = 0
 
     if multiplane == True:
        #colprofile = np.array(np.mean(tmpsbx[0][0][0], axis=1))
-       ndeadrows = 100  #np.argmax(np.diff(colprofile)) + 1
+       ndeadrows = 50#100  #np.argmax(np.diff(colprofile)) + 1
     else:
        ndeadrows = 0
 
-    return ndeadcols, ndeadrows
+    return ndeadcols_l, ndeadcols_r,ndeadrows
 
     
 
@@ -216,18 +217,19 @@ def sbx2h5_cutdb(filename, channel_i=-1, batch_size=1000, dataset="data", output
 
 
     with h5py.File(h5fname, 'w') as f:
-        ndeadcols, ndeadrows = find_deadbands(filename)
+        ndeadcols_l, ndeadcols_r,ndeadrows = find_deadbands(filename)
         if channel_i == -1:
-            dset = f.create_dataset(dataset, (int(max_idx) * nchan, int(info['sz'][0]/info['fov_repeats']-ndeadrows), info['sz'][1]-ndeadcols))
+            dset = f.create_dataset(dataset, (int(max_idx) * nchan, int(info['sz'][0]/info['fov_repeats']-ndeadrows), info['sz'][1]-ndeadcols_r-ndeadcols_l))
             while k <= max_idx:  # info['max_idx']:
                 # print(k)
             
                 data = sbxread(filename, k, batch_size)
-                data = np.transpose(data[:, ndeadcols:-20, ndeadrows:, :], axes=(0, 3, 2, 1))
+                data = np.transpose(data[:, ndeadcols_l:-ndeadcols_r, ndeadrows:, :], axes=(0, 3, 2, 1))
 
                 print(k, min((k + batch_size, info['max_idx'])))
                 # channel 0
                 for chan in range(info['nChan']): # keep this loop as true info['nChan'] to avoid indexing error in data
+                    # print(k * nchan + chan:min((nchan * (k + batch_size) + chan,nchan * info['max_idx'])))
                     dset[k * nchan + chan:min(
                         (nchan * (k + batch_size) + chan, nchan * info['max_idx'])):nchan, :,
                     :] = np.squeeze(data[chan, :, :, :])
@@ -236,13 +238,13 @@ def sbx2h5_cutdb(filename, channel_i=-1, batch_size=1000, dataset="data", output
                 k += batch_size
                 #tifffile.imwrite('test_tif.tif',dset)
         else:
-            dset = f.create_dataset(dataset, (int(max_idx), int(info['sz'][0]/info['fov_repeats']-ndeadrows), info['sz'][1]-ndeadcols))
+            dset = f.create_dataset(dataset, (int(max_idx), int(info['sz'][0]/info['fov_repeats']-ndeadrows), info['sz'][1]-ndeadcols_r-ndeadcols_l))
             while k <= max_idx:  # info['max_idx']:
                 # print(k)
                 #ndeadcols = find_deadbands(filename)
 
                 data = sbxread(filename, k, batch_size)
-                data = np.transpose(data[channel_i, ndeadcols:-20, ndeadrows:, :], axes=(2, 1, 0))
+                data = np.transpose(data[channel_i, ndeadcols_l:-ndeadcols_r, ndeadrows:, :], axes=(2, 1, 0))
                 print(k, min((k + batch_size, info['max_idx'])))
                 dset[k:min((k + batch_size, info['max_idx'])), :, :] = data
                 f.flush()
@@ -281,7 +283,7 @@ def sbx2tiff(filename, channel_i=-1, batch_size=900, dataset="data", output_name
     os.makedirs(base, exist_ok=True)
     print(nchan)
     print(nplanes)
-    # Could potentially use the 'sbxreader' to make everything easier, but need to figure our which frame would bediscard when 
+    # Could potentially use the 'sbxreader' to make everything easier, but need to figure out which frame would bediscard when 
     # the number of frame is not divisible by the number of planes
 
     ndeadcols,ndeadrows = find_deadbands(filename)
