@@ -3,9 +3,10 @@ import os
 import h5py
 import numpy as np
 import scipy.io as spio
-# for cutting deadband
-import sbxreader
 
+# for cutting deadband induced by bdirectional recording
+import sbxreader
+import tifffile
 
 
 def loadmat(filename, sbx_version=2):
@@ -238,23 +239,22 @@ def sbx2h5(filename, channel_i=-1, batch_size=1000, dataset="data", output_name=
 
     return h5fname
 
-def find_deadbands(filename):
-    # multiplane = False)
+def find_deadbands(filename, multiplane = True):
     # this function is to find the deadband due to bidirectional recording
-    #  Didn't get to cut the dead row due to lack of undertand of the sbx data structure, should potential fix this though
+    #  Didn't git to cut the dead row due to lack of undertand of the sbx data structure, should potential fix this though
     f = sbxreader.sbx_memmap (filename + '.sbx')
     if f.metadata["scanning_mode"] == 'bidirectional':
-        ndeadcols = f. ndeadcols
+        ndeadcols = f. ndeadcols+10
     else:
         ndeadcols = 0
 
-#    if multiplane == True
-#        colprofile = np.array(np.mean(tmpsbx[0][0][0], axis=1))
-#        ndeadrows = np.argmax(np.diff(colprofile)) + 1
-#    else:
-#        ndeadrows = 0
+    if multiplane == True:
+       #colprofile = np.array(np.mean(tmpsbx[0][0][0], axis=1))
+       ndeadrows = 100  #np.argmax(np.diff(colprofile)) + 1
+    else:
+       ndeadrows = 0
 
-    return ndeadcols
+    return ndeadcols, ndeadrows
 
     
 
@@ -279,15 +279,14 @@ def sbx2h5_cutdb(filename, channel_i=-1, batch_size=1000, dataset="data", output
 
 
     with h5py.File(h5fname, 'w') as f:
-
+        ndeadcols, ndeadrows = find_deadbands(filename)
         if channel_i == -1:
-            dset = f.create_dataset(dataset, (int(max_idx) * nchan, int(info['sz'][0]/info['fov_repeats']), info['sz'][1]))
+            dset = f.create_dataset(dataset, (int(max_idx) * nchan, int(info['sz'][0]/info['fov_repeats']-ndeadrows), info['sz'][1]-ndeadcols))
             while k <= max_idx:  # info['max_idx']:
                 # print(k)
-                ndeadcols = find_deadbands(filename, scanning_mode = 'unidirectional')
-
+            
                 data = sbxread(filename, k, batch_size)
-                data = np.transpose(data[:, ndeadcols:, :, :], axes=(0, 3, 2, 1))
+                data = np.transpose(data[:, ndeadcols:-20, ndeadrows:, :], axes=(0, 3, 2, 1))
 
                 print(k, min((k + batch_size, info['max_idx'])))
                 # channel 0
@@ -298,20 +297,100 @@ def sbx2h5_cutdb(filename, channel_i=-1, batch_size=1000, dataset="data", output
 
                 f.flush()
                 k += batch_size
+                #tifffile.imwrite('test_tif.tif',dset)
         else:
-            dset = f.create_dataset(dataset, (int(max_idx), int(info['sz'][0]/info['fov_repeats']), info['sz'][1]))
+            dset = f.create_dataset(dataset, (int(max_idx), int(info['sz'][0]/info['fov_repeats']-ndeadrows), info['sz'][1]-ndeadcols))
             while k <= max_idx:  # info['max_idx']:
                 # print(k)
-                ndeadcols = find_deadbands(filename, scanning_mode = 'unidirectional')
+                #ndeadcols = find_deadbands(filename)
 
                 data = sbxread(filename, k, batch_size)
-                data = np.transpose(data[channel_i, ndeadcols:, :, :], axes=(2, 1, 0))
+                data = np.transpose(data[channel_i, ndeadcols:-20, ndeadrows:, :], axes=(2, 1, 0))
                 print(k, min((k + batch_size, info['max_idx'])))
                 dset[k:min((k + batch_size, info['max_idx'])), :, :] = data
                 f.flush()
                 k += batch_size
+                #tifffile.imwrite('test_tif.tif',dset)
  
     return h5fname
+
+def sbx2tiff(filename, channel_i=-1, batch_size=900, dataset="data", output_name=None, max_idx=None,
+           force_2chan=False, nplanes=1):
+    info = loadmat(filename + '.mat')  # ['info']
+    if force_2chan:
+        nchan = 2
+    else:
+        nchan = info['nChan']
+    k = 0
+    if output_name is None:
+        tifname = filename + '.tiff'
+    else:
+        tifname = output_name
+
+    if max_idx is None:
+        max_idx = info['max_idx']
+
+    if nplanes is None:
+        if len(info['otwave'])>0:
+            nplanes = info['otwave'].shape[0]
+        else:
+            nplanes = 1
+
+    if batch_size % nplanes != 0:
+        print('batch size have to be divisible by plane number!')
+        quit()
+
+    base, last = os.path.split(tifname)
+    os.makedirs(base, exist_ok=True)
+    print(nchan)
+    print(nplanes)
+    # Could potentially use the 'sbxreader' to make everything easier, but need to figure our which frame would bediscard when 
+    # the number of frame is not divisible by the number of planes
+
+    ndeadcols,ndeadrows = find_deadbands(filename)
+    for chan in range(info['nChan']):
+        #print(chan)
+        for p in range (nplanes):
+            k=0
+            #print(p)
+            with h5py.File(tifname, 'w') as f:
+                dset = f.create_dataset(dataset,(int((max_idx-p-1)/ nplanes)+1, int(info['sz'][0]/info['fov_repeats']-ndeadrows), info['sz'][1]-ndeadcols))
+        #if channel_i == -1:
+                while k <= max_idx:  # info['max_idx']:
+
+                    data = sbxread(filename, k, batch_size)
+                    data = np.transpose(data[:, ndeadcols:, ndeadrows:, :], axes=(0, 3, 2, 1))
+                    #print(data.shape)
+                    print(min(int((k + batch_size)/nplanes),int((max_idx-p-1)/ nplanes)+1))
+                    print(np.squeeze(data[chan,range(p,data.shape[1],nplanes),:,:]).shape)
+                    dset[int(k/nplanes):min(int((k + batch_size)/nplanes),int((max_idx-p-1)/ nplanes)+1), :, :] = np.squeeze(data[chan,range(p,data.shape[1],nplanes),:,:])
+
+
+                    # channel 0
+                    # for chan in range(info['nChan']): # keep this loop as true info['nChan'] to avoid indexing error in data
+                    #     dset[k * nchan + chan:min(
+                    #         (nchan * (k + batch_size) + chan, nchan * info['max_idx'])):nchan, :,
+                    #     :] = np.squeeze(data[chan, :, :, :])
+
+                    f.flush()
+                    k += batch_size
+                tifffile.imwrite('test_tif_'+str(chan)+'_'+str(p)+'_'+'tif',dset)
+                print('1 tiff file saved')
+        # else:
+        #     dset = f.create_dataset(dataset, (int(max_idx), int(info['sz'][0]/info['fov_repeats']), info['sz'][1]-ndeadcols))
+        #     while k <= max_idx:  # info['max_idx']:
+        #         # print(k)
+        #         #ndeadcols = find_deadbands(filename)
+
+        #         data = sbxread(filename, k, batch_size)
+        #         data = np.transpose(data[channel_i, ndeadcols:, :, :], axes=(2, 1, 0))
+        #         print(k, min((k + batch_size, info['max_idx'])))
+        #         dset[k:min((k + batch_size, info['max_idx'])), :, :] = data
+        #         #f.flush()
+        #         k += batch_size
+        #         #tifffile.imwrite('test_tif.tif',dset)
+ 
+    return tifname
 
 
 def default_ops():
