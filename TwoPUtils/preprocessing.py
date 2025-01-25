@@ -143,7 +143,7 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False, n_planes = 1):
     lr = fr * scan_info['config']['lines']/scan_info['fov_repeats']  # line rate
 
     if 'frame' in scan_info.keys() and 'line' in scan_info.keys():
-        frames = scan_info['frame'].astype(np.int)
+        frames = scan_info['frame'].astype(int)
         frame_diff = np.ediff1d(frames, to_begin=0)
         try:
             mods = np.argwhere(frame_diff < -100)[0]
