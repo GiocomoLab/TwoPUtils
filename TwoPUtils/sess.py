@@ -510,7 +510,7 @@ class Session(SessionInfo, ABC):
                     for ts in which_ts:
                         ts_path = os.path.join(self.s2p_path[chan], plane, "%s.npy" % ts)
                         if os.path.exists(ts_path):
-                            ts_to_pull[ts] = ts_path
+                            ts_to_pull[f'channel_{chan}_{ts}'] = ts_path
                             
                      #TODO: add support for multi-channel timeseries       
                     self.add_timeseries_from_file(frames = frames, **ts_to_pull)
