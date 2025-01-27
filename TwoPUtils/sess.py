@@ -85,7 +85,7 @@ class SessionInfo:
         self.vr_filename = None  # string, path to vr sqlite file
         self.s2p_path = None  # string, suite2p path
         self.n_planes = 1  # int, number of imaging planes
-        self.n_channnels = 1  # int, number of functional channels
+        self.n_channels = 1  # int, number of functional channels
         self.prompt_for_keys = False  # bool, whether or not to run through prompts for minimal keys
         self.verbose = False
 
@@ -266,7 +266,7 @@ class SessionInfo:
         # look for suite2p results
         if self.s2p_path is None:
             base, _ = os.path.splitext(self.scanheader_file)
-            if self.n_channnels==1:
+            if self.n_channels==1:
                 self.s2p_path = os.path.join(base, 'suite2p')
                 if not os.path.exists(self.s2p_path):
                     if self.verbose:
@@ -277,7 +277,7 @@ class SessionInfo:
                 base, _ = os.path.splitext(self.scanheader_file)
                 self.s2p_path = [os.path.join(base,'suite2p')]
                 
-                self.s2p_path.extend([os.path.join(base, f'chan{i+1}/suite2p') for i in range(1,self.n_channnels)])
+                self.s2p_path.extend([os.path.join(base, f'chan{i+1}/suite2p') for i in range(1,self.n_channels)])
 
     def _check_for_coaligned_suite2p_sessions(self):
         # look for file that points to which session share ROIs
@@ -334,8 +334,8 @@ class Session(SessionInfo, ABC):
         super(Session, self).__init__(**kwargs)
         
         
-        #     print("Multi-channel processing for %d channels" % self.n_channnels)
-        #     self.timeseries = {f'channel_{i}': None for i in range(self.n_channnels)}
+        #     print("Multi-channel processing for %d channels" % self.n_channels)
+        #     self.timeseries = {f'channel_{i}': None for i in range(self.n_channels)}
             
         #     self.trial_matrices
 
@@ -389,8 +389,8 @@ class Session(SessionInfo, ABC):
 
 
         print(self.s2p_path)
-        if self.n_channnels>1:
-            self.s2p_ops={f'channel_{i}': np.load(os.path.join(self.s2p_path[i], plane, 'ops.npy'), allow_pickle=True).all() for i in range(self.n_channnels)}
+        if self.n_channels>1:
+            self.s2p_ops={f'channel_{i}': np.load(os.path.join(self.s2p_path[i], plane, 'ops.npy'), allow_pickle=True).all() for i in range(self.n_channels)}
         else:
             self.s2p_ops = np.load(os.path.join(self.s2p_path, plane, 'ops.npy'), allow_pickle=True).all()
 
@@ -399,9 +399,9 @@ class Session(SessionInfo, ABC):
 
         # Get iscell
         if custom_iscell in (None, False):
-            if self.n_channnels>1:
+            if self.n_channels>1:
                 self.iscell = {}
-                for chan in range(self.n_channnels):
+                for chan in range(self.n_channels):
                     default_iscell_path = os.path.join(self.s2p_path[chan], plane, 'iscell.npy')
                     if os.path.exists(default_iscell_path):
                         self.iscell[f'channel_{chan}'] = np.load(default_iscell_path)
@@ -416,7 +416,7 @@ class Session(SessionInfo, ABC):
                     print("No iscell file found, using None")
                     self.iscell = None
         else:
-            if self.n_channnels>1:
+            if self.n_channels>1:
                 raise NotImplementedError("Custom iscell not implemented for multi-channel data")
             
             custom_iscell = os.path.normpath(custom_iscell)
@@ -431,9 +431,9 @@ class Session(SessionInfo, ABC):
                 raise ValueError("custom_iscell must be a .npy or .csv file")        
         
         
-        if self.n_channnels>1:
+        if self.n_channels>1:
             self.s2p_stats = {}
-            for chan in range(self.n_channnels):
+            for chan in range(self.n_channels):
                 try:
                     self.s2p_stats[f'channel_{chan}'] = np.load(os.path.join(self.s2p_path[chan], plane, 'stats.npy'), allow_pickle=True)
                 except:
@@ -455,8 +455,8 @@ class Session(SessionInfo, ABC):
         # 2) Concatenate timeseries per cell per plane across rows 
        
                 
-        if self.n_channnels>1:
-            for chan in range(self.n_channnels):
+        if self.n_channels>1:
+            for chan in range(self.n_channels):
                 if self.n_planes > 1:
                     plane_dirs = glob(os.path.join(self.s2p_path[chan], 'plane*'))
                     ts_per_plane = {}
