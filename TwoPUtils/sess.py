@@ -395,7 +395,10 @@ class Session(SessionInfo, ABC):
             self.s2p_ops = np.load(os.path.join(self.s2p_path, plane, 'ops.npy'), allow_pickle=True).all()
 
         if frames is None:
-            frames = slice(0, self.s2p_ops['nframes'])
+            if self.n_channels>1:
+                frames = slice(0, self.s2p_ops['channel_1']['nframes'])
+            else:
+                frames = slice(0, self.s2p_ops['nframes'])
 
         # Get iscell
         if custom_iscell in (None, False):
