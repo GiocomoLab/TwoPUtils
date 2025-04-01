@@ -43,6 +43,7 @@ class ROIAligner:
         for ref_ind in range(len(self.sess_list)):
 
             self.ref_roistack = make_roistack(self.sess_list[ref_ind].s2p_stats, self.sess_list[ref_ind].s2p_ops)
+            
             # align targ_sess mean images to ref_sess mean image
             self.reg_ops = self.sess_list[ref_ind].s2p_ops
             self.align_mean_images(self.sess_list[ref_ind].s2p_ops['meanImg'], self.sess_list[ref_ind].s2p_ops)
@@ -62,7 +63,10 @@ class ROIAligner:
         """
 
         # get mean images
+        # self.frames = np.array([s.s2p_ops['meanImg'] for s in self.sess_list]).astype(np.float32)
         self.frames = np.array([s.s2p_ops['meanImg'] for s in self.sess_list]).astype(np.float32)
+        print([s.s2p_ops['meanImg'].shape for s in self.sess_list])
+
         # align them
         self.frames, self.rigid_offsets, self.nonrigid_offsets = align_stack(
             ref_img, self.frames, reg_ops)

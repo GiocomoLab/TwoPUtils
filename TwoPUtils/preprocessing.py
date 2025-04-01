@@ -121,13 +121,14 @@ def _ttl_check(ttl_times):
     return mask==0 # original ttl's up to a 1 VR frame error (shouldn't be a meaningful issue for calcium but
                    # but it is an issue for voltage imaging
 
-def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False, n_planes = 1):
+def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False, n_planes = 1, mux=False):
     """
     Align VR data to 2P scanning data, for NLW rig
     :param vr_dataframe: VR SQLite data as a pandas dataframe
     :param scan_info: scanning metadata from Scanbox .mat file
     :param run_ttl_check: whether to check for aberrant TTLs from poor grounding
     :param n_planes: number of imaged planes
+    :param multi_chan: multi channel functionality #ES
     :return: dataframe with one row per imaging frame, containing aligned/interpolated VR data
     """
 
@@ -140,6 +141,7 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False, n_planes = 1):
     # Use the frame rate and line rate to estimate timestamps at which each of these TTLs arrived,
     # relative to the start of the imaging session.
     fr = scan_info['frame_rate'] # frame rate
+    
     lr = fr * scan_info['config']['lines']/scan_info['fov_repeats']  # line rate
 
     if 'frame' in scan_info.keys() and 'line' in scan_info.keys():
@@ -282,7 +284,22 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False, n_planes = 1):
 
     # replace nans with 0s
     ca_df.fillna(value=0, inplace=True)
+
+    '''
+    ES add multi_chan functionality, not needed
+    '''
+    # if ca_df.shape[0] % 2 == 1:
+    #         ca_df = ca_df[:-1]
+        
+    if mux:
+        
+        chan0_vr  = ca_df.iloc[::2].reset_index(drop = True) # Chan0 even frames
+        chan1_vr = ca_df.iloc[1::2].reset_index(drop=True) # Chan1 odd frames
+        return chan0_vr, chan1_vr
+    
+    
     return ca_df
+    
 
 
 def vr_align_to_2P_thor(vr_dataframe, 

@@ -7,6 +7,7 @@ import dill
 import numpy as np
 import scipy as sp
 import pandas as pd
+import math
 
 from .scanner_tools import sbx_utils
 from .scanner_tools import thorlabs_utils
@@ -77,6 +78,7 @@ class SessionInfo:
         self.date = None  # date of session (dd_mm_yyyy)
         self.scene = None  # name of unity scene
         self.session = None  # int, session number
+        self.fix_wheel = False # social interaction project fixed wheel 
         self.scan_number = None  # Neurolabware only
         self.scanner = None  # ['NLW','ThorLabs','Bruker']
         self.VR_only = None  # bool, whether the session is only vr data
@@ -88,6 +90,8 @@ class SessionInfo:
         self.n_channels = 1  # int, number of functional channels
         self.prompt_for_keys = False  # bool, whether or not to run through prompts for minimal keys
         self.verbose = False
+        self.fixed_wheel = False
+        self.tunnel_data = False
 
         self.__dict__.update(kwargs)  # update keys based on inputs
         # if want to receive prompts for minimal keys
@@ -102,12 +106,12 @@ class SessionInfo:
         if self.vr_filename is None:
             self._check_for_VR_data()
 
-        if not self.VR_only:
-            # check for raw 2P data
-            self._check_for_2P_data()
+        # if not self.VR_only:
+        #     # check for raw 2P data
+        #     self._check_for_2P_data()
 
-            # check for suite 2P data
-            self._check_for_suite2P_data()
+        #     # check for suite 2P data
+        #     self._check_for_suite2P_data()
 
             # check for other sessions that 2P data is aligned to
             # self._check_for_coaligned_suite2p_sessions()
@@ -314,6 +318,9 @@ class Session(SessionInfo, ABC):
 
         """
 
+        # tunnel data
+        self.tunnel_df = None
+        
         # vr data
         self.vr_data = None
         self.trial_start_inds = None
@@ -339,6 +346,17 @@ class Session(SessionInfo, ABC):
             
         #     self.trial_matrices
 
+    @classmethod
+    def from_file(cls, filename, **kwargs):
+        '''
+        initialize class from previous instance
+
+        :param filename:
+        :return:
+        '''
+        with open(filename, 'rb') as file:
+            return cls(prev_sess=dill.load(file), **kwargs)
+            
     def load_scan_info(self, sbx_version=2):
         if self.scanner == "NLW":
             self.scan_info = sbx_utils.loadmat(self.scanheader_file, sbx_version=sbx_version)
@@ -347,11 +365,22 @@ class Session(SessionInfo, ABC):
 
         if self.vr_data is None or overwrite:
             # load sqlite file as pandas array
-            df = pp.load_sqlite(self.vr_filename,fix_teleports=True)
+
+            if "wheel" in self.vr_filename:
+                df = pp.load_sqlite(self.vr_filename,fix_teleports=False)
+            else:
+                df = pp.load_sqlite(self.vr_filename,fix_teleports=True)
             if not self.VR_only:
                 # feed pandas array and scene name to alignment function
                 if self.scanner == "NLW":
                     self.vr_data = pp.vr_align_to_2P(df, self.scan_info, run_ttl_check = run_ttl_check, n_planes=self.n_planes)
+
+                    # ES add multi-chan functionality 
+                    if self.n_channels > 1:
+                        self.chan0_vr, self.chan1_vr = pp.vr_align_to_2P(df, self.scan_info, run_ttl_check = run_ttl_check, n_planes=self.n_planes, mux = True)
+                        print(self.chan0_vr.shape, self.chan1_vr.shape)
+
+                        
                 elif self.scanner == "ThorLabs":
                    
                     thor_metadata = thorlabs_utils.ThorHaussIO(self.basedir, chan='A', xml_path=None, 
@@ -378,7 +407,7 @@ class Session(SessionInfo, ABC):
 
 
     def load_suite2p_data(self, which_ts=('F', 'Fneu', 'spks', 'F_chan2', 'Fneu_chan2'), custom_iscell=None,
-                          frames=None, use_iscell=True):
+                          frames=None, use_iscell=True, mux = False):
 
         if self.n_planes > 1:
             print(f"Multiplane processing for {self.n_planes} planes")
@@ -397,6 +426,9 @@ class Session(SessionInfo, ABC):
         if frames is None:
             if self.n_channels>1:
                 frames = slice(0, self.s2p_ops['channel_1']['nframes'])
+                if mux:
+                    chan0_frames = slice(0, 2*(self.s2p_ops['channel_0']['nframes']), 2)
+                    chan1_frames = slice(1, 2*self.s2p_ops['channel_1']['nframes'],2)
             else:
                 frames = slice(0, self.s2p_ops['nframes'])
 
@@ -515,11 +547,19 @@ class Session(SessionInfo, ABC):
                         if os.path.exists(ts_path):
                             ts_to_pull[f'channel_{chan}_{ts}'] = ts_path
                             
-                     #TODO: add support for multi-channel timeseries       
-                    self.add_timeseries_from_file(frames = frames, **ts_to_pull)
+                     #TODO: add support for multi-channel timeseries
+                    if mux: 
+                        self.add_timeseries_from_file(frames = frames, **ts_to_pull, mux=True)
+                    else:
+                        self.add_timeseries_from_file(frames = frames, **ts_to_pull)
                     for ts_name in ts_to_pull.keys():
-                        assert self.timeseries[ts_name].shape[1] == self.vr_data.shape[0],\
-                            "%s must be the same length as vr_data" % ts_name
+                        if self.n_channels > 1:
+                            
+                            assert self.timeseries[ts_name].shape[1] == math.floor((self.vr_data.shape[0])/2),\
+                                "%s must be the same length as vr_data" % ts_name
+                        else:
+                            assert self.timeseries[ts_name].shape[1] == self.vr_data.shape[0],\
+                                "%s must be the same length as vr_data" % ts_name
                         if use_iscell:
                             self.timeseries[ts_name] = self.timeseries[ts_name][self.iscell[f'channel_{chan}'][:, 0] > 0, :]
                         else:
@@ -604,18 +644,62 @@ class Session(SessionInfo, ABC):
                     assert v.shape[1]-self.vr_data.shape[0]<2, "multiplane data more than 1 frame different from vr_data"
 
                     v = v[:,:self.vr_data.shape[0]]
-
-                # check that v is same length as vr_data
-
-                assert v.shape[1] == self.vr_data.shape[0], \
-                    "%s must be the same length as vr_data, %s %d, vr %d " % (k, k, v.shape[1], self.vr_data.shape[0])
+                    
+            if self.vr_data.shape[0] - v.shape[1] == 1:
+                print("adding zero row")
+                zeros = np.zeros((v.shape[0], 1))
+                v = np.concatenate((v, zeros), axis = 1)
+                print(v.shape[1])
+                
+            assert v.shape[1] == self.vr_data.shape[0], \
+                        "%s must be the same length as vr_data, %s %d, vr %d " % (k, k, v.shape[1], self.vr_data.shape[0])
 
             self.timeseries[k] = v
 
-    def add_timeseries_from_file(self,frames = None, **kwargs):
-        self.add_timeseries(frames = frames, **{key: np.load(path) for key, path in kwargs.items()})
+    def add_timeseries_mux(self, frames = None, **kwargs):
+        for k, v in kwargs.items():
+            if self.vr_data is not None:
+                if len(v.shape) < 2:
+                    v = np.array(v)[np.newaxis, :]
 
-    def add_pos_binned_trial_matrix(self, ts_name, pos_key, **trial_matrix_kwargs):
+                if frames is not None:
+                    v = v[:,frames]
+
+                if self.n_planes>1:
+                    # print(v.shape, self.vr_data.shape)
+                    assert v.shape[1]-self.vr_data.shape[0]<2, "multiplane data more than 1 frame different from vr_data"
+
+                    v = v[:,:self.vr_data.shape[0]]
+                # if "channel_0" in k:
+                #     vr_shape = self.chan0_vr.shape[0]
+                # elif "channel_1" in k:
+                #     vr_shape = self.chan1_vr.shape[0]
+                # else:
+                #     vr_shape = self.vr_data.shape[0]
+                # check that v is same length as vr_data
+                if self.n_channels > 1:
+                    '''
+                    ES added multi-chan functionality, do not throw error if VR 2x each chan
+
+                    '''
+                    
+                    # NEED TO ADD, if V is odd then add one nan frame to end (VR can be odd but 2p will always be even) 
+                    assert v.shape[1] == self.chan1_vr.shape[0], \
+                        "%s must be the same length as vr_data, %s %d, vr %d " % (k, k, v.shape[1], self.chan1_vr.shape[0])
+                else:
+                    assert v.shape[1] == self.vr_data.shape[0], \
+                        "%s must be the same length as vr_data, %s %d, vr %d " % (k, k, v.shape[1], self.vr_data.shape[0])
+
+            self.timeseries[k] = v
+
+    def add_timeseries_from_file(self,frames = None, mux = False, **kwargs):
+        if mux:
+            self.add_timeseries_mux(frames = frames, **{key: np.load(path) for key, path in kwargs.items()})
+        else:
+            self.add_timeseries(frames = frames, **{key: np.load(path) for key, path in kwargs.items()})
+
+        
+    def add_pos_binned_trial_matrix(self, ts_name, pos_key='t', **trial_matrix_kwargs):
         """
         add an attribute from an existing timeseries attribute
         :param ts_name:
