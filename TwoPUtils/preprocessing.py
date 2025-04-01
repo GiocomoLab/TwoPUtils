@@ -47,6 +47,7 @@ def _fix_teleports(df: pd.DataFrame):
     pos[pos < -50] = -50
     teleport_inds = np.where(np.ediff1d(pos, to_end=0) <= -50)[0]
     tstart_inds = np.append([0], teleport_inds[:-1] + 1)
+    #print(tstart_inds, teleport_inds)
     assert teleport_inds.shape==tstart_inds.shape , "trial starts and teleports not the same shape, %d starts %d teleports" % (tstart_inds.shape[0], teleport_inds.shape[0])
 
     for ind in range(tstart_inds.shape[0]):  # for teleports
@@ -143,7 +144,7 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False, n_planes = 1):
     lr = fr * scan_info['config']['lines']/scan_info['fov_repeats']  # line rate
 
     if 'frame' in scan_info.keys() and 'line' in scan_info.keys():
-        frames = scan_info['frame'].astype(np.int)
+        frames = scan_info['frame'].astype(int) # used to be np.int, but the new np doesn't support this anymore
         frame_diff = np.ediff1d(frames, to_begin=0)
         try:
             mods = np.argwhere(frame_diff < -100)[0]

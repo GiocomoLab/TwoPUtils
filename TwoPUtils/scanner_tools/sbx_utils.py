@@ -8,8 +8,7 @@ import scipy.io as spio
 import sbxreader
 import tifffile
 
-
-def loadmat(filename):
+def loadmat(filename, sbx_version=2):
     '''
     this function should be called instead of direct spio.loadmat
     as it cures the problem of not properly recovering python dictionaries
@@ -19,17 +18,27 @@ def loadmat(filename):
     data = spio.loadmat(filename, struct_as_record=False, squeeze_me=True)
     info = _check_keys(data)['info']
     # Defining number of channels/size factor
-    if info['channels'] == 1:
-        info['nChan'] = 2
-        factor = 1
-    elif info['channels'] == 2:
-        info['nChan'] = 1
-        factor = 2
-    elif info['channels'] == 3:
-        info['nChan'] = 1
-        factor = 2
+    if sbx_version==3:
+        if info['chan']['nchan'] == 1:
+            info['nChan'] = 1
+            factor = 2
+        elif info['chan']['nchan'] == 2:
+            info['nChan'] = 2
+            factor = 1
+        else:
+            raise UserWarning("wrong 'channels' argument")
     else:
-        raise UserWarning("wrong 'channels' argument")
+        if info['channels'] == 1:
+            info['nChan'] = 2
+            factor = 1
+        elif info['channels'] == 2:
+            info['nChan'] = 1
+            factor = 2
+        elif info['channels'] == 3:
+            info['nChan'] = 1
+            factor = 2
+        else:
+            raise UserWarning("wrong 'channels' argument")
 
     if info['scanmode'] == 0:
         info['recordsPerBuffer'] *= 2
@@ -57,6 +66,54 @@ def loadmat(filename):
         info['n_planes']=info['otwave'].shape[0]
 
     return info
+# def loadmat(filename):
+#     '''
+#     this function should be called instead of direct spio.loadmat
+#     as it cures the problem of not properly recovering python dictionaries
+#     from mat files. It calls the function check keys to cure all entries
+#     which are still mat-objects
+#     '''
+#     data = spio.loadmat(filename, struct_as_record=False, squeeze_me=True)
+#     info = _check_keys(data)['info']
+#     # Defining number of channels/size factor
+#     if info['channels'] == 1:
+#         info['nChan'] = 2
+#         factor = 1
+#     elif info['channels'] == 2:
+#         info['nChan'] = 1
+#         factor = 2
+#     elif info['channels'] == 3:
+#         info['nChan'] = 1
+#         factor = 2
+#     else:
+#         raise UserWarning("wrong 'channels' argument")
+
+#     if info['scanmode'] == 0:
+#         info['recordsPerBuffer'] *= 2
+
+#     if 'fold_lines' in info.keys():
+#         if info['fold_lines']>0:
+#             info['fov_repeats'] = int(info['config']['lines']/info['fold_lines'])
+#         else:
+#             info['fov_repeats']=1
+#     else:
+#         info['fold_lines']=0
+#         info['fov_repeats']=1
+#     # Determine number of frames in whole file
+
+#     info['orig_max_idx'] = int(
+#         os.path.getsize(filename[:-4] + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1) 
+
+
+#     info['max_idx'] = int(
+#         os.path.getsize(filename[:-4] + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1) * int(info['fov_repeats'])
+
+    
+#     info['frame_rate'] = info['resfreq'] / info['config']['lines'] * (2 - info['scanmode'])*info['fov_repeats']
+#     if 'otwave' in info.keys():
+#         info['n_planes']=info['otwave'].shape[0]
+
+#     return info
 
 
 def _check_keys(dict):
@@ -85,8 +142,7 @@ def _todict(matobj):
             dict[strg] = elem
     return dict
 
-
-def sbxread(filename, k=0, N=None):
+def sbxread(filename, k=0, N=None, **kwargs):
     '''
     Input: filename should be full path excluding .sbx, starting index, batch size
     By default Loads whole file at once, make sure you have enough ram available to do this
@@ -96,7 +152,7 @@ def sbxread(filename, k=0, N=None):
         filename = filename[:-4]
 
     # Load info
-    info = loadmat(filename + '.mat')  # ['info']
+    info = loadmat(filename + '.mat', **kwargs)  # ['info']
     # print info.keys()
 
     # Paramters
@@ -108,7 +164,6 @@ def sbxread(filename, k=0, N=None):
         N = min([N, max_idx - k])
 
     nSamples = info['sz'][1] * info['recordsPerBuffer'] / info['fov_repeats']* 2 * info['nChan']
-    # print(nSamples, N)
 
     # Open File
     fo = open(filename + '.sbx')
@@ -120,61 +175,197 @@ def sbxread(filename, k=0, N=None):
     x = x.reshape((info['nChan'], info['sz'][1], int(info['recordsPerBuffer']/info['fov_repeats']), int(N)), order='F')
 
     return x
+# def sbxread(filename, k=0, N=None):
+#     '''
+#     Input: filename should be full path excluding .sbx, starting index, batch size
+#     By default Loads whole file at once, make sure you have enough ram available to do this
+#     '''
+#     # Check if contains .sbx and if so just truncate
+#     if '.sbx' in filename:
+#         filename = filename[:-4]
 
+#     # Load info
+#     info = loadmat(filename + '.mat')  # ['info']
+#     # print info.keys()
 
-def array2h5(arr, h5fname, dataset="data"):
-    with h5py.File(h5fname, 'w') as f:
-        dset = f.create_dataset(dataset, data=arr)
+#     # Paramters
+#     # k = 0; #First frame
+#     max_idx = info['max_idx']
+#     if N is None:
+#         N = max_idx  # Last frame
+#     else:
+#         N = min([N, max_idx - k])
 
+#     nSamples = info['sz'][1] * info['recordsPerBuffer'] / info['fov_repeats']* 2 * info['nChan']
+#     # print(nSamples, N)
+
+#     # Open File
+#     fo = open(filename + '.sbx')
+
+#     # print(int(k) * int(nSamples))
+#     fo.seek(int(k) * int(nSamples), 0)
+#     x = np.fromfile(fo, dtype='uint16', count=int(nSamples / 2 * N))
+#     x = np.int16((np.int32(65535) - x).astype(np.int32) / np.int32(2))
+#     x = x.reshape((info['nChan'], info['sz'][1], int(info['recordsPerBuffer']/info['fov_repeats']), int(N)), order='F')
+
+#     return x
 
 def sbx2h5(filename, channel_i=-1, batch_size=1000, dataset="data", output_name=None, max_idx=None,
-           force_2chan=False):
-    info = loadmat(filename + '.mat')  # ['info']
+           force_2chan=False,**kwargs):
+    info = loadmat(filename + '.mat', **kwargs)  # ['info']
     if force_2chan:
         nchan = 2
     else:
         nchan = info['nChan']
-    k = 0
+        
+    k = 0 # starting frame to read
+    k_write = 0 # starting frame to write
+    
     if output_name is None:
         h5fname = filename + '.h5'
     else:
         h5fname = output_name
-
+        
+    if 'sbx_version' in kwargs.keys():
+        if kwargs['sbx_version'] !=3:
+            info['pockmux'] = 0
+    else:
+        info['pockmux'] = 0
+        
     if max_idx is None:
         max_idx = info['max_idx']
+
 
     base, last = os.path.split(h5fname)
     os.makedirs(base, exist_ok=True)
     with h5py.File(h5fname, 'w') as f:
 
         if channel_i == -1:
-            dset = f.create_dataset(dataset, (int(max_idx) * nchan, int(info['sz'][0]/info['fov_repeats']), info['sz'][1]))
-            while k <= max_idx:  # info['max_idx']:
-                # print(k)
-                data = sbxread(filename, k, batch_size)
+            if info['pockmux']==1:
+                dset = f.create_dataset(dataset, (int(max_idx/2) * nchan, int(info['sz'][0]/info['fov_repeats']), info['sz'][1]))
+                write_batch_size = int(batch_size/2)
+            else:
+                dset = f.create_dataset(dataset, (int(max_idx) * nchan, int(info['sz'][0]/info['fov_repeats']), info['sz'][1]))
+                write_batch_size = batch_size
+                
+            print('dset size', dset)
+            while (k <= max_idx):  # info['max_idx']:
+                data = sbxread(filename, k, batch_size, **kwargs)
                 data = np.transpose(data[:, :, :, :], axes=(0, 3, 2, 1))
 
-                print(k, min((k + batch_size, info['max_idx'])))
-                # channel 0
+                print(k, min((k + batch_size, max_idx)))
+                
+                # iterate through channels
                 for chan in range(info['nChan']): # keep this loop as true info['nChan'] to avoid indexing error in data
-                    dset[k * nchan + chan:min(
-                        (nchan * (k + batch_size) + chan, nchan * info['max_idx'])):nchan, :,
-                    :] = np.squeeze(data[chan, :, :, :])
+                    if info['pockmux']==1: # if using mux mode in Scanbox 3
+                        if chan==0:
+                            # for PMT0 we take every other frame starting with frame 0 
+                            this_batch = np.squeeze(data[chan, ::2, :, :])
+                        
+                        elif chan==1:
+                            # for PMT1 we take every other frame starting with frame 1
+                             # check size of remaining data
+                            this_batch = np.squeeze(data[chan, 1::2, :, :])
+                            
+                            
+                        # check size of remaining data
+                        size_to_alloc = int((min((k + batch_size, max_idx))-k)/2)
+
+                        size_to_read = this_batch.shape[0]
+
+                        # print('read', size_to_read, 'alloc', size_to_alloc, 'this_batch', this_batch.shape)
+                        
+                        ## Below is a catch if the scan has an odd info['max_idx'] and therefore a 
+                        ## different number of frames on each channel
+                        if size_to_read > size_to_alloc:
+                            # if one more sample to write that the allocation size, trim it
+                            this_batch = this_batch[:-1, :, :]
+                            print('trimming', this_batch.shape)
+                        elif size_to_alloc > size_to_read:
+                            # if one fewer sample, pad with a frame of zeros
+                            this_batch = np.stack(this_batch, np.zeros((1,this_batch.shape[1],this_batch.shape[2])),axis=0)
+                            print('padding', this_batch.shape)
+
+                        dset[k_write * nchan + chan:min(
+                                (nchan * (k_write + write_batch_size) + chan, nchan * max_idx)):nchan, :,
+                            :] = this_batch
+      
+                    else: # else if not using mux or using an earlier Scanbox version
+                        dset[k * nchan + chan:min(
+                            (nchan * (k_write + write_batch_size) + chan, nchan * max_idx)):nchan, :,
+                        :] = np.squeeze(data[chan, :, :, :])
 
                 f.flush()
                 k += batch_size
+                k_write += write_batch_size
+            
         else:
             dset = f.create_dataset(dataset, (int(max_idx), int(info['sz'][0]/info['fov_repeats']), info['sz'][1]))
             while k <= max_idx:  # info['max_idx']:
                 # print(k)
-                data = sbxread(filename, k, batch_size)
+                data = sbxread(filename, k, batch_size, **kwargs)
                 data = np.transpose(data[channel_i, :, :, :], axes=(2, 1, 0))
                 print(k, min((k + batch_size, info['max_idx'])))
                 dset[k:min((k + batch_size, info['max_idx'])), :, :] = data
                 f.flush()
                 k += batch_size
+           
 
     return h5fname
+
+# def array2h5(arr, h5fname, dataset="data"):
+#     with h5py.File(h5fname, 'w') as f:
+#         dset = f.create_dataset(dataset, data=arr)
+
+
+# def sbx2h5(filename, channel_i=-1, batch_size=1000, dataset="data", output_name=None, max_idx=None,
+#            force_2chan=False):
+#     info = loadmat(filename + '.mat')  # ['info']
+#     if force_2chan:
+#         nchan = 2
+#     else:
+#         nchan = info['nChan']
+#     k = 0
+#     if output_name is None:
+#         h5fname = filename + '.h5'
+#     else:
+#         h5fname = output_name
+
+#     if max_idx is None:
+#         max_idx = info['max_idx']
+
+#     base, last = os.path.split(h5fname)
+#     os.makedirs(base, exist_ok=True)
+#     with h5py.File(h5fname, 'w') as f:
+
+#         if channel_i == -1:
+#             dset = f.create_dataset(dataset, (int(max_idx) * nchan, int(info['sz'][0]/info['fov_repeats']), info['sz'][1]))
+#             while k <= max_idx:  # info['max_idx']:
+#                 # print(k)
+#                 data = sbxread(filename, k, batch_size)
+#                 data = np.transpose(data[:, :, :, :], axes=(0, 3, 2, 1))
+
+#                 print(k, min((k + batch_size, info['max_idx'])))
+#                 # channel 0
+#                 for chan in range(info['nChan']): # keep this loop as true info['nChan'] to avoid indexing error in data
+#                     dset[k * nchan + chan:min(
+#                         (nchan * (k + batch_size) + chan, nchan * info['max_idx'])):nchan, :,
+#                     :] = np.squeeze(data[chan, :, :, :])
+
+#                 f.flush()
+#                 k += batch_size
+#         else:
+#             dset = f.create_dataset(dataset, (int(max_idx), int(info['sz'][0]/info['fov_repeats']), info['sz'][1]))
+#             while k <= max_idx:  # info['max_idx']:
+#                 # print(k)
+#                 data = sbxread(filename, k, batch_size)
+#                 data = np.transpose(data[channel_i, :, :, :], axes=(2, 1, 0))
+#                 print(k, min((k + batch_size, info['max_idx'])))
+#                 dset[k:min((k + batch_size, info['max_idx'])), :, :] = data
+#                 f.flush()
+#                 k += batch_size
+
+#     return h5fname
 
 def find_deadbands(filename, multiplane = True):
     # this function is to find the deadband due to bidirectional recording
@@ -197,8 +388,8 @@ def find_deadbands(filename, multiplane = True):
     
 
 def sbx2h5_cutdb(filename, channel_i=-1, batch_size=1000, dataset="data", output_name=None, max_idx=None,
-           force_2chan=False):
-    info = loadmat(filename + '.mat')  # ['info']
+           force_2chan=False, **kwargs):
+    info = loadmat(filename + '.mat', **kwargs)  # ['info']
     if force_2chan:
         nchan = 2
     else:
@@ -223,7 +414,7 @@ def sbx2h5_cutdb(filename, channel_i=-1, batch_size=1000, dataset="data", output
             while k <= max_idx:  # info['max_idx']:
                 # print(k)
             
-                data = sbxread(filename, k, batch_size)
+                data = sbxread(filename, k, batch_size,**kwargs)
                 data = np.transpose(data[:, ndeadcols_l:-ndeadcols_r, ndeadrows:, :], axes=(0, 3, 2, 1))
 
                 print(k, min((k + batch_size, info['max_idx'])))
@@ -243,7 +434,7 @@ def sbx2h5_cutdb(filename, channel_i=-1, batch_size=1000, dataset="data", output
                 # print(k)
                 #ndeadcols = find_deadbands(filename)
 
-                data = sbxread(filename, k, batch_size)
+                data = sbxread(filename, k, batch_size,**kwargs)
                 data = np.transpose(data[channel_i, ndeadcols_l:-ndeadcols_r, ndeadrows:, :], axes=(2, 1, 0))
                 print(k, min((k + batch_size, info['max_idx'])))
                 dset[k:min((k + batch_size, info['max_idx'])), :, :] = data
