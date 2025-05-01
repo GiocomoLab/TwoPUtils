@@ -326,15 +326,20 @@ class Session(SessionInfo, ABC):
         # inheritance
         super(Session, self).__init__(**kwargs)
 
-    def load_scan_info(self):
+    def load_scan_info(self,sbx_version=2):
         if self.scanner == "NLW":
-            self.scan_info = sbx_utils.loadmat(self.scanheader_file)
+            print(sbx_version)
+            self.scan_info = sbx_utils.loadmat(self.scanheader_file, sbx_version)
 
     def align_VR_to_2P(self, overwrite=True, run_ttl_check = False):
 
         if self.vr_data is None or overwrite:
             # load sqlite file as pandas array
-            df = pp.load_sqlite(self.vr_filename,fix_teleports=True)
+            if "wheel" in self.vr_filename or "unrestrict_fam" in self.vr_filename:
+                df = pp.load_sqlite(self.vr_filename,fix_teleports=False)
+            else:
+                df = pp.load_sqlite(self.vr_filename,fix_teleports=True)
+                
             if not self.VR_only:
                 # feed pandas array and scene name to alignment function
                 if self.scanner == "NLW":
@@ -474,7 +479,194 @@ class Session(SessionInfo, ABC):
                 else:
                     pass
 
+    def load_suite2p_data_multi_session(self, which_ts=('F', 'Fneu', 'spks', 'F_chan2', 'Fneu_chan2'),              custom_iscell=None, frames=None, use_iscell=True, multi_sess=True):
+            # define path is a quick fit because we haven't decide on the data dir staruture for each day, once settled, can fix this
+            if self.n_planes > 1:
+                print(f"Multiplane processing for {self.n_planes} planes")
+                plane = "combined"
+            else:
+                plane = "plane0"
+
+            if multi_sess == False:
+                print(self.s2p_path)
+                self.s2p_ops = np.load(os.path.join(self.s2p_path, plane, 'ops.npy'), allow_pickle=True).all()
+            else:
+                date_index = self.s2p_path.find(self.date) + len(self.date)
+                define_path = os.path.join(self.s2p_path[:date_index],'combined','suite2p')
+                print(define_path)
+                self.s2p_ops = np.load(os.path.join(define_path, plane, 'ops.npy'), allow_pickle=True).all()
+
+            if len(self.s2p_ops['data_path']) >1:
+                print("Multiple sessions found in suite2p ops, current is ", self.scene)
+            else:
+                print("Only one session found in suite2p ops, current is ", self.scene)
+    
+
+            if frames is None:
+                frames = slice(0, self.s2p_ops['nframes'])
+
+            # Get iscell
+            if custom_iscell in (None, False):
+                default_iscell_path = os.path.join(self.s2p_path, plane, 'iscell.npy')
+                if os.path.exists(default_iscell_path):
+                    self.iscell = np.load(default_iscell_path)
+                else:
+                    default_iscell_path = os.path.join(define_path, plane, 'iscell.npy')
+                    if os.path.exists(default_iscell_path):
+                        self.iscell = np.load(default_iscell_path)
+                    else:
+                        print("No iscell file found, using None")
+                        self.iscell = None
+            else:
+                custom_iscell = os.path.normpath(custom_iscell)
+                if custom_iscell.count(os.path.sep) < 1:
+                    custom_iscell = os.path.join(self.s2p_path, plane, custom_iscell)
+
+                if os.path.splitext(custom_iscell)[1] == '.npy':
+                    self.iscell = np.load(custom_iscell)
+                elif os.path.splitext(custom_iscell)[1] == '.csv':
+                    self.iscell = pd.read_csv(custom_iscell)
+                else:
+                    raise ValueError("custom_iscell must be a .npy or .csv file")        
+            
+            if define_path is None:
+                try:
+                    self.s2p_stats = np.load(os.path.join(self.s2p_path, plane, 'stats.npy'), allow_pickle=True)#[self.iscell[:,0]>0]
+                except:
+                    self.s2p_stats = np.load(os.path.join(self.s2p_path, plane, 'stat.npy'), allow_pickle=True)#[self.iscell[:,0]>0]
+            else:
+                try:
+                    self.s2p_stats = np.load(os.path.join(define_path, plane, 'stats.npy'), allow_pickle=True)#[self.iscell[:,0]>0]
+                except:
+                    self.s2p_stats = np.load(os.path.join(define_path, plane, 'stat.npy'), allow_pickle=True)#[self.iscell[:,0]>0]
+
+            if use_iscell:
+                self.s2p_stats = self.s2p_stats[self.iscell[:,0]>0]
+            
+            # If multi-plane, iterate through planes to:
+            # 1) Get plane indices per cell
+            # 2) Concatenate timeseries per cell per plane across rows 
+            
+            if self.n_planes > 1:
+                if define_path is None:
+                    plane_dirs = glob(os.path.join(self.s2p_path, 'plane*'))
+                else:
+                    plane_dirs = glob(os.path.join(define_path, 'plane*'))
+                print(plane_dirs)
+
+                ts_per_plane = {}
+                plane_start_ind = 0
                 
+                for i,plane_dir in enumerate(plane_dirs):
+                    ts_per_plane[i] = {}
+                    
+                    # 1) Get plane indices per cell
+                    print(plane_dir)
+                    iscell_i = np.load(os.path.join(plane_dir,"iscell.npy"),allow_pickle=True)
+                    print(f"this plane is shape {iscell_i.shape}")
+                    # if we curated on combined, iscell per plane will not be updated!
+                    # therefore we use a chunk of the combined iscell                
+                    iscell_i = self.iscell[plane_start_ind:plane_start_ind+iscell_i.shape[0]]
+                    plane_start_ind = plane_start_ind + iscell_i.shape[0]                    
+                    
+                    n_cells = np.sum((iscell_i[:, 0] > 0)*1)
+                    print(f"{n_cells} cells in plane {i}")                    
+                    self.plane_per_cell = np.append(self.plane_per_cell,np.ones(n_cells,)*i)
+
+                    # 2) For each timeseries type, load plane timeseries to concatenate
+                    ts_to_pull = {}
+                    for ts in which_ts:
+                        ts_path = os.path.join(plane_dir, "%s.npy" % ts)
+                        ts_per_plane[i].update({ts : np.empty((0,0),dtype=float)})
+                        if os.path.exists(ts_path):
+                            ts_to_pull[ts] = ts_path
+
+                    for ts_name in ts_to_pull.keys():
+                        load_ts = np.load(ts_to_pull[ts_name],allow_pickle=True)
+                        print("the shape of the ts is ", load_ts.shape)
+                        
+                        if frames is not None:
+                            if multi_sess == False:
+                                load_ts = load_ts[:,frames]
+                            else:
+                                #print(print(self.s2p_ops['nframes_per_folder']) )
+                                print(self.s2p_ops['data_path'])
+                                #print(self.scene)
+                                session_id = self.find_scene_index()
+                                if session_id ==-1:
+                                    # this is a temp fix, need to fix the way that I process the data
+                                    h5_files = sorted(glob(os.path.join(self.s2p_ops['data_path'][0], '*.h5')))
+                                    session_id = self.find_session_index(h5_files)
+                                    print(h5_files)
+                                    print(session_id)
+                                
+                                if session_id != -1:
+                                    if session_id == 0:
+                                        start_frame = 0
+                                        end_frame = self.s2p_ops['nframes_per_folder'][0]
+                                    else:
+                                        start_frame = np.sum(self.s2p_ops['nframes_per_folder'][:session_id])
+                                        end_frame = start_frame + self.s2p_ops['nframes_per_folder'][session_id]
+                                        frames = end_frame - start_frame+1
+
+                                else:
+                                    # h5_files = glob(os.path.join(self.s2p_ops['data_path'][0], '*.h5'))
+                                    # print(h5_files)
+                                    # session_id = self.find_session_index(h5_files)
+                                    # print(session_id)
+                                    print("Session not found in data_path")
+                                    raise ValueError("Session not found in data_path")
+                                #print(start_frame, end_frame,frames)
+                                print(self.s2p_ops['nframes_per_folder'])
+                                load_ts = load_ts[:,start_frame:end_frame]
+                                print(load_ts.shape)
+                                print("VR_frame num is ", self.vr_data.shape[0])
+                            
+                        assert load_ts.shape[1] == self.vr_data.shape[0],\
+                            "%s must be the same length as vr_data" % ts_name
+                        # Keep curated cells
+                        if use_iscell:
+                            ts_per_plane[i][ts_name] = load_ts[iscell_i[:, 0] > 0, :]
+                        else:
+                            pass
+                
+                print("Concatenating timeseries across planes...")
+                for ts in ts_to_pull.keys():
+                    self.timeseries[ts] = np.concatenate([ts_per_plane[p][ts] for p in range(self.n_planes)], axis=0)
+
+            # If single plane: haven't fix the multisess for signle plane, but should be very hard
+            else:
+                self.plane_per_cell = np.zeros(self.iscell.shape[0],)
+                
+                ts_to_pull = {}
+                for ts in which_ts:
+                    ts_path = os.path.join(self.s2p_path, plane, "%s.npy" % ts)
+                    if os.path.exists(ts_path):
+                        ts_to_pull[ts] = ts_path
+                self.add_timeseries_from_file(frames = frames, **ts_to_pull)
+                for ts_name in ts_to_pull.keys():
+                    assert self.timeseries[ts_name].shape[1] == self.vr_data.shape[0],\
+                        "%s must be the same length as vr_data" % ts_name
+                    if use_iscell:
+                        self.timeseries[ts_name] = self.timeseries[ts_name][self.iscell[:, 0] > 0, :]
+                    else:
+                        pass
+
+    def find_scene_index(self): # This doesn't need to be here
+        try:
+            return next(i for i, path in enumerate(self.s2p_ops["data_path"]) 
+                    if self.scene in path)
+        except StopIteration:
+            return -1
+
+    def find_session_index(self, h5_files): # This doesn't need to be here
+        try:
+            return next(i for i, path in enumerate(h5_files) 
+                    if ("%03d"%(self.scan_number)) in path)
+        except StopIteration:
+            return -1        
+
+
     def add_timeseries(self, frames = None, **kwargs):
         for k, v in kwargs.items():
             if self.vr_data is not None:
