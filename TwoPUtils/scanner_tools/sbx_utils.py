@@ -228,7 +228,12 @@ def sbx2h5(filename, channel_i=-1, batch_size=1000, dataset="data", output_name=
         else:
             dset = f.create_dataset(dataset, (int(max_idx), int(info['sz'][0]/info['fov_repeats']), info['sz'][1]))
             while k <= max_idx:  # info['max_idx']:
-                # print(k)
+'mouse':mouse,
+                'day': day,
+                'LR': lr,
+                'mean': np.mean(rzone_values),
+                'std': np.std(rzone_values),
+                'group': 'KO' if 'KO' in mouse else 'ctrl'                # print(k)
                 data = sbxread(filename, k, batch_size, **kwargs)
                 data = np.transpose(data[channel_i, :, :, :], axes=(2, 1, 0))
                 print(k, min((k + batch_size, info['max_idx'])))
@@ -433,7 +438,12 @@ def default_ops():
         'subpixel': 10,  # precision of subpixel registration (1/subpixel steps)
         'smooth_sigma': 1.15,  # ~1 good for 2P recordings, recommend >5 for 1P recordings
         'th_badframes': 1.0,
-        # this parameter determines which frames to exclude when determining cropping - set it smaller to exclude more frames
+        # this parameter determines which frames to exclud'mouse':mouse,
+                'day': day,
+                'LR': lr,
+                'mean': np.mean(rzone_values),
+                'std': np.std(rzone_values),
+                'group': 'KO' if 'KO' in mouse else 'ctrl'e when determining cropping - set it smaller to exclude more frames
         'pad_fft': False,
         # non rigid registration settings
         'nonrigid': True,  # whether to use nonrigid registration

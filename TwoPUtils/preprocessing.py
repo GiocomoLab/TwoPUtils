@@ -4,8 +4,173 @@ import warnings
 import numpy as np
 import pandas as pd
 import scipy as sp
+import numpy as np
+import scipy as sp
+import scipy.io as spio
+import scipy.interpolate
+import sqlite3 as sql
+import pandas as pd
+from datetime import datetime
+from glob import glob
+import os.path
+import warnings
 
+import sklearn
+from sklearn.linear_model import LinearRegression as linreg
+import TwoPUtils
+import TwoPUtils.utilities as u
+from TwoPUtils.utilities import nansmooth
 
+def create_sess(basedir, scandir, vrdir, animal, date, scene, session, scan_number,
+                load_scaninfo=True,
+                load_VR=True,
+                load_suite2p=False,
+                load_behavior=True,
+                VR_only=False,
+                nplanes=1,
+                scanner="NLW",
+                **trial_matrix_kwargs):
+    """
+    Wrapper to create sess class using TwoPUtils and add behavior data
+
+    :param basedir: base path for preprocessed data, i.e. path_dict['preprocessed_root']
+    :param scandir: path for sbx files, i.e. path_dict['sbx_root']
+    :param vrdir: path for VR files, i.e. path_dict['VR_Data']
+    :param animal: mouse name
+    :param date: date of session, in mm_dd_yy format (because ScanBox)
+    :param scene: VR scene name
+    :param session: session number from sbx file name (i.e. 4 for '004_002')
+    :param scan_number: scan number from sbx file name (i.e. 2 for '004_002')
+    :param load_scaninfo: whether to add scanbox data
+    :param load_VR: whether to add VR data and align VR to 2P
+    :param load_suite2p: whether to add suite2p curation
+    :param load_behavior: whether to add licking and speed data
+    :return: completed sess class
+    """
+
+    if not VR_only:
+        if scanner == "NLW":
+            fullpath = os.path.join(
+                basedir, date, scene, "%s_%03d_%03d" % (scene, session, scan_number))
+            scanpath = os.path.join(
+                scandir, date, scene, "%s_%03d_%03d" % (scene, session, scan_number))
+            if os.path.exists(scanpath + ".sbx"):
+                scan_header, scan_file = scanpath+'.mat', scanpath+'.sbx'
+            else:
+                scan_header, scan_file = fullpath+'.mat', fullpath+'.sbx'
+
+            scan_info = TwoPUtils.scanner_tools.sbx_utils.loadmat(scan_header)
+            n_planes = scan_info['n_planes']  # len(glob(planedir))
+            print(f"Found {n_planes} planes from scan info")
+
+        elif scanner == "ThorLabs":
+            fullpath = os.path.join(
+                basedir, date, "%s_%03d_%03d" % (scene, session, scan_number))
+            scanpath = os.path.join(
+                basedir, date, "%s_%03d_%03d" % (scene, session, scan_number))
+
+            # thor_metadata = thorIO.ThorHaussIO(fullpath, chan='A', xml_path=None,
+            #                   sync_path= fullpath + '_sync',
+            #                      width_idx=4, maxtime=None)
+            scan_file = glob(os.path.join(fullpath, 'Image_scan*.tif'))[0]
+            # thor_metadata.xml_name
+            scan_header = os.path.join(fullpath, "Experiment.xml")
+
+            # find number of planes from suite2p dir
+            # all scans have at least plane 0
+            planedir = os.path.join(fullpath, "suite2p", "plane*")
+            n_planes = len(glob(planedir))  # int(thor_metadata.zplanes)
+            print(f"Found {nplanes} planes from suite2p dir")
+
+        if n_planes != 0:
+            nplanes = n_planes
+        else:
+            print(f"Overwriting with kwarg nplanes = {nplanes}")
+
+    #         nplanes = np.maximum(scan_info['otwave'].shape[0],1) # this isn't always accurate
+
+        s2p_path = os.path.join(fullpath, 'suite2p')
+
+    else:
+        scan_file, scan_header, s2p_path = None, None, None
+        load_scaninfo = False
+        load_VR = True
+        load_suite2p = False
+        load_behavior = True
+        nplanes = 1
+        VR_only = True
+
+    vr_file = os.path.join(vrdir, '%s/%s/%s_%d.sqlite' %
+                           (animal, date, scene, session))
+
+    sess = TwoPUtils.sess.Session(**{
+        'mouse': animal,
+        'date': date,
+        'scene': scene,
+        'session': session,
+        'scan_number': scan_number,
+        'VR_only': VR_only,
+        'basedir': fullpath,
+        'prompt_for_keys': False,
+        'scanner': scanner,
+        'scan_file': scan_file,
+        'scanheader_file': scan_header,
+        's2p_path': s2p_path,
+        'vr_filename': vr_file,
+        'n_planes': nplanes,
+    })
+
+    append_session_data(sess,
+                        scaninfo=load_scaninfo,
+                        VR=load_VR,
+                        suite2p=load_suite2p,
+                        behavior=load_behavior,
+                        **trial_matrix_kwargs)
+
+    return sess
+
+def append_session_data(sess, scaninfo=False, VR=False, suite2p=False, behavior=False,
+                        **trial_matrix_kwargs):
+    """
+    complete the session class with data relevant to InVivoDA analysis
+    - assumes the session class has already been created by TwoPUtils
+
+    assign datatypes as True to append
+
+    :param sess:
+    :param scaninfo:
+    :param VR:
+    :param suite2p:
+    :param behavior:
+    :return:
+    """
+
+    if scaninfo:
+        sess.load_scan_info()
+    if VR:
+        sess.align_VR_to_2P()
+    print(sess.vr_data.shape)
+
+    if suite2p:
+        sess.load_suite2p_data()
+
+    if behavior:
+        if suite2p:
+            sess.add_timeseries(licks=sess.vr_data['lick'],
+                                rewards=sess.vr_data['reward'],
+                                speed=sess.vr_data['speed'])
+            sess.add_pos_binned_trial_matrix(
+                ['speed'], 'pos', impute_nans=False, **trial_matrix_kwargs)
+        else:
+            # hack for now since we currently can't get speed without imaging frame times
+            sess.add_timeseries(licks=sess.vr_data['lick'],
+                                rewards=sess.vr_data['reward'])
+        # add behavior trial matrices
+        sess.add_pos_binned_trial_matrix(
+            ['licks', 'rewards'], 'pos', impute_nans=False, **trial_matrix_kwargs)
+
+    return sess
+    
 def load_sqlite(sqlite_filename: str, fix_teleports=True):
     """
 
@@ -222,7 +387,7 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False, n_planes = 1, m
     # Below, use interpolation to "downsample" the behavior data to match the times of the imaging data
 
     # linear interpolation of position and catmull rom spline "time" parameter
-    lin_interp_cols = column_filter(('pos','posx','posy','t'))
+    lin_interp_cols = column_filter(('pos','posx','posy','t')) #'posx','posy',
 
     f_mean = sp.interpolate.interp1d(ttl_times, vr_dataframe[lin_interp_cols]._values, axis=0, kind='slinear')
     ca_df.loc[mask, lin_interp_cols] = f_mean(ca_time[mask])
@@ -300,7 +465,176 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False, n_planes = 1, m
     
     return ca_df
     
+def tunnel_align_to_2P(tunnel_df, scan_info, run_ttl_check=False, n_planes = 1, mux=False):
+    """
+    Align VR data to 2P scanning data, for NLW rig
+    :param tunnel_df: tunnel data as a pandas dataframe
+    :param scan_info: scanning metadata from Scanbox .mat file
+    :param run_ttl_check: whether to check for aberrant TTLs from poor grounding
+    :param n_planes: number of imaged planes
+    :param multi_chan: multi channel functionality #ES
+    :return: dataframe with one row per imaging frame, containing aligned/interpolated VR data
+    """
 
+    # TTLs coming from Unity to the scanbox computer are stored as frame and line
+    # indices in the scanbox .mat file, loaded here as scan_info['frames'] and scan_info['lines'].
+    # In MATLAB, this would be info.frames and info.lines after loading the .mat file.
+    # For instance, if the second Unity TTL arrived at imaging frame 3, line 112 (e.g. out of 512),
+    # then scan_info['frame_rate'][1]=3 and scan_info['lines'][1]=112. 
+
+    # Use the frame rate and line rate to estimate timestamps at which each of these TTLs arrived,
+    # relative to the start of the imaging session.
+    fr = scan_info['frame_rate'] # frame rate
+    
+    lr = fr * scan_info['config']['lines']/scan_info['fov_repeats']  # line rate
+
+    if 'frame' in scan_info.keys() and 'line' in scan_info.keys():
+        frames = scan_info['frame'].astype(int)
+        frame_diff = np.ediff1d(frames, to_begin=0)
+        try:
+            mods = np.argwhere(frame_diff < -100)[0]
+            for i, mod in enumerate(mods.tolist()):
+                frames[mod:] += (i + 1) * 65535
+        except:
+            pass
+        frames = frames * scan_info['fov_repeats']
+
+        # frames = np.array([f * scan_info['fov_repeats'] for f in scan_info['frame']])
+        if scan_info['fold_lines']>0:
+            lines = np.array([l % scan_info['fold_lines'] for l in scan_info['line']])
+        else:
+            lines = np.array(scan_info['line'])
+    else:
+        # frames = np.array([f * scan_info['fov_repeats'] for f in scan_info['frames']])
+        frames = scan_info['frames'].astype(np.int)
+        frame_diff = np.ediff1d(frames, to_begin=0)
+        try:
+            mods = np.argwhere(frame_diff < -100)[0]
+            for i, mod in enumerate(mods.tolist()):
+                frames[mod:] += (i + 1) * 65535
+        except:
+            pass
+        frames = frames * scan_info['fov_repeats']
+        # lines = np.array([l % scan_info['fold_lines'] for l in scan_info['lines']])
+        if scan_info['fold_lines']>0:
+            lines = np.array([l % scan_info['fold_lines'] for l in scan_info['lines']])
+        else:
+            lines = np.array(scan_info['lines'])
+    
+
+    print(f"frame rate {fr}")
+    # Estimate the TTL timestamps
+    ttl_times = frames / fr + lines / lr
+    # print(ttl_times[-100:])
+
+    if run_ttl_check:
+        mask = _ttl_check(ttl_times)
+        print('bad ttls', mask.sum())
+        ttl_times = ttl_times[mask]
+        frames = frames[mask]
+        # lines = lines[mask]
+
+
+    numVRFrames = frames.shape[0]
+    # print('numVRFrames', numVRFrames)
+
+    # create empty pandas dataframe to store calcium aligned data
+    ca_df = pd.DataFrame(columns=tunnel_df.columns, index=np.arange(int(scan_info['max_idx']/n_planes)))
+
+    ## create an evenly spaced timeseries for the aligned frames
+    # ca_time = np.arange(0, 1 / fr * scan_info['max_idx'], 1 / fr)
+    ca_time = np.arange(0,1/fr * scan_info['max_idx'], n_planes/fr)
+    ca_time[ca_time>ttl_times[-1]]=ttl_times[-1]
+
+    print(f"{ttl_times.shape} ttl times,{ca_time.shape} ca2+ frame times")
+    print(f"last time: Tunnel {ttl_times[-1]}, ca2+ {ca_time[-1]}")
+    if (ca_time.shape[0] - ca_df.shape[0]) == 1:  # occasionally a 1 frame correction due to
+        # scan stopping mid frame
+        warnings.warn('one frame correction')
+        ca_time = ca_time[:-1]
+
+    ca_df.loc[:, 'time'] = ca_time
+    mask = ca_time >= ttl_times[0]  # mask for when ttls have started on imaging clock
+    # (i.e. imaging started and stabilized, ~10s)
+
+    # take VR frames for which there are valid TTLs
+    tunnel_df = tunnel_df.iloc[-numVRFrames:]
+
+    #find columns that exist in sqlite file from iterable
+    column_filter = lambda columns: [col for col in tunnel_df.columns if col in columns]
+
+    # Below, use interpolation to "downsample" the behavior data to match the times of the imaging data
+
+    # linear interpolation of position and catmull rom spline "time" parameter
+    lin_interp_cols = column_filter(('head_velocity','rightear_x','rightear_y','tailbase_x','tailbase_y','nose_x','nose_y','head_x','head_y','leftear_x','leftear_y','torso_x','torso_y'))
+
+    f_mean = sp.interpolate.interp1d(ttl_times, tunnel_df[lin_interp_cols]._values, axis=0, kind='slinear')
+    ca_df.loc[mask, lin_interp_cols] = f_mean(ca_time[mask])
+    ca_df.loc[~mask, 'pos'] = -500.
+
+    # nearest frame interpolation
+    near_interp_cols = column_filter(('interaction'))
+
+    f_nearest = sp.interpolate.interp1d(ttl_times, tunnel_df[near_interp_cols]._values, axis=0, kind='nearest')
+    ca_df.loc[mask, near_interp_cols] = f_nearest(ca_time[mask])
+    ca_df.fillna(method='ffill', inplace=True)
+    ca_df.loc[~mask, near_interp_cols] = -1.
+
+    # integrate, interpolate and then take difference, to make sure data is not lost
+
+    # Note that for licks, taking a cumulative count per imaging frame corresponds to the 
+    # number of VR frames where the capacative sensor remained at 1, which should not be 
+    # interpreted literally as a number of complete licks per imaging frame, but as an
+    # approximation of the rate.
+    # cumsum_interp_cols = column_filter(('head_velocity'))
+    # f_cumsum = sp.interpolate.interp1d(ttl_times, np.cumsum('head_velocity',[cumsum_interp_cols]._values, axis=0), axis=0,
+    #                                    kind='slinear')
+    # ca_cumsum = np.round(np.insert(f_cumsum(ca_time[mask]), 0, [0]*len(cumsum_interp_cols), axis=0))
+    # if ca_cumsum[-1, -2] < ca_cumsum[-1, -3]:
+    #     ca_cumsum[-1, -2] += 1
+
+    # ca_df.loc[mask, cumsum_interp_cols] = np.diff(ca_cumsum, axis=0)
+    # ca_df.loc[~mask, cumsum_interp_cols] = 0.
+
+    # # fill na here
+    # ca_df.loc[np.isnan(ca_df['teleport']._values), 'teleport'] = 0
+    # ca_df.loc[np.isnan(ca_df['tstart']._values), 'tstart'] = 0
+    # # if first tstart gets clipped
+    # if ca_df['teleport'].sum(axis=0) != ca_df['tstart'].sum(axis=0):
+    #     warnings.warn("Number of teleports and trial starts don't match")
+    #     if ca_df['teleport'].sum(axis=0) - ca_df['tstart'].sum(axis=0) == 1:
+    #         warnings.warn(("One more teleport and than trial start, Assuming the first trial start got clipped"))
+    #         ca_df['tstart'].iloc[0]=1
+
+    #     if ca_df['teleport'].sum(axis=0) - ca_df['tstart'].sum(axis=0) == -1:
+    #         warnings.warn(('One more trial start than teleport, assuming the final teleport got chopped'))
+    #         ca_df['teleport'].iloc[-1]=1
+    
+    # # smooth instantaneous speed
+    # cum_dz = sp.ndimage.filters.gaussian_filter1d(np.cumsum(ca_df['head_velocity']._values), 5)
+    # ca_df['head_velocity'] = np.ediff1d(cum_dz, to_end=0)
+
+    # # ca_df['speed'].interpolate(method='linear', inplace=True)
+    # ca_df['speed'] = np.array(np.divide(ca_df['dz'], np.ediff1d(ca_df['time'], to_begin=1. / fr)))
+    # ca_df['speed'].iloc[0] = 0
+
+    # replace nans with 0s
+    ca_df.fillna(value=0, inplace=True)
+
+    '''
+    ES add multi_chan functionality, not needed
+    '''
+    # if ca_df.shape[0] % 2 == 1:
+    #         ca_df = ca_df[:-1]
+        
+    if mux:
+        
+        chan0_vr  = ca_df.iloc[::2].reset_index(drop = True) # Chan0 even frames
+        chan1_vr = ca_df.iloc[1::2].reset_index(drop=True) # Chan1 odd frames
+        return chan0_vr, chan1_vr
+    
+    
+    return ca_df
 
 def vr_align_to_2P_thor(vr_dataframe, 
                         thor_metadata, 
