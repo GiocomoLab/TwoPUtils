@@ -674,8 +674,7 @@ class Session(SessionInfo, ABC):
 
         if frames is None:
             if self.n_channels>1:
-                frames = slice(0, self.s2p_ops['channel_0']['nframes'])
-
+                frames = slice(0, self.s2p_ops['channel_1']['nframes'])
             else:
                 frames = slice(0, self.s2p_ops['nframes'])
 
