@@ -388,7 +388,7 @@ def find_deadbands(filename, multiplane = True):
     
 
 def sbx2h5_cutdb(filename, channel_i=-1, batch_size=1000, dataset="data", output_name=None, max_idx=None,
-           force_2chan=False, **kwargs):
+           force_2chan=False, output_dir=None, **kwargs):
     info = loadmat(filename + '.mat', **kwargs)  # ['info']
     if force_2chan:
         nchan = 2
@@ -403,9 +403,18 @@ def sbx2h5_cutdb(filename, channel_i=-1, batch_size=1000, dataset="data", output
     if max_idx is None:
         max_idx = info['max_idx']
 
-    base, last = os.path.split(h5fname)
-    os.makedirs(base, exist_ok=True)
-
+    # Handle output directory
+    if output_dir is not None:
+        # Create output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
+        # Get just the filename without path
+        base_name = os.path.basename(h5fname)
+        # Create full path with output directory
+        h5fname = os.path.join(output_dir, base_name)
+    else:
+        # Use original behavior if no output_dir specified
+        base, last = os.path.split(h5fname)
+        os.makedirs(base, exist_ok=True)
 
     with h5py.File(h5fname, 'w') as f:
         ndeadcols_l, ndeadcols_r,ndeadrows = find_deadbands(filename)
