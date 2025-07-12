@@ -375,7 +375,9 @@ def find_deadbands(filename, multiplane = True):
         ndeadcols_l = f. ndeadcols+20
         ndeadcols_r = 30
     else:
-        ndeadcols = 0
+        ndeadcols_l = 76+20 # For Can's data, due to wrong recording, some of the animals were unidirectional recording
+                            # put the same numder here for the sake of cutting the FOV to the same size
+        ndeadcols_r = 30
 
     if multiplane == True:
        #colprofile = np.array(np.mean(tmpsbx[0][0][0], axis=1))
