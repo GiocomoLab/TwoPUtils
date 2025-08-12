@@ -228,12 +228,12 @@ def sbx2h5(filename, channel_i=-1, batch_size=1000, dataset="data", output_name=
         else:
             dset = f.create_dataset(dataset, (int(max_idx), int(info['sz'][0]/info['fov_repeats']), info['sz'][1]))
             while k <= max_idx:  # info['max_idx']:
-'mouse':mouse,
-                'day': day,
-                'LR': lr,
-                'mean': np.mean(rzone_values),
-                'std': np.std(rzone_values),
-                'group': 'KO' if 'KO' in mouse else 'ctrl'                # print(k)
+                # 'mouse':mouse,
+                # 'day': day,
+                # 'LR': lr,
+                # 'mean': np.mean(rzone_values),
+                # 'std': np.std(rzone_values),
+                # 'group': 'KO' if 'KO' in mouse else 'ctrl'                # print(k)
                 data = sbxread(filename, k, batch_size, **kwargs)
                 data = np.transpose(data[channel_i, :, :, :], axes=(2, 1, 0))
                 print(k, min((k + batch_size, info['max_idx'])))
@@ -443,7 +443,7 @@ def default_ops():
                 'LR': lr,
                 'mean': np.mean(rzone_values),
                 'std': np.std(rzone_values),
-                'group': 'KO' if 'KO' in mouse else 'ctrl'e when determining cropping - set it smaller to exclude more frames
+                'group': 'KO' if 'KO' in mouse else 'ctrl',# when determining cropping - set it smaller to exclude more frames
         'pad_fft': False,
         # non rigid registration settings
         'nonrigid': True,  # whether to use nonrigid registration

@@ -413,7 +413,7 @@ class Session(SessionInfo, ABC):
 
 
     def align_SLEAP_to_2P(self, overwrite=True, run_ttl_check = False):
-        sleap_dir = "C:/Users/esay/data/social_interaction/SLEAPData"
+        sleap_dir = "C:/Users/esay/data/social_interaction/SLEAP_raw/videos"
         sleap_file = os.path.join(sleap_dir, self.mouse, self.date, (self.scene +'.h5') )
         
         if self.tunnel_df is None or overwrite:
