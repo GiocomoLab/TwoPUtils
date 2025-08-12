@@ -674,7 +674,8 @@ class Session(SessionInfo, ABC):
 
         if frames is None:
             if self.n_channels>1:
-                frames = slice(0, self.s2p_ops['channel_1']['nframes'])
+                frames = slice(0, self.s2p_ops['channel_0']['nframes'])
+
             else:
                 frames = slice(0, self.s2p_ops['nframes'])
 
@@ -967,7 +968,7 @@ class Session(SessionInfo, ABC):
         else:
             _check_and_add_key(ts_name)
 
-    def add_pos_binned_trial_matrix_mux(self, ts_name, pos_key = 't', channel = None, **trial_matrix_kwargs):
+    def add_pos_binned_trial_matrix_mux(self, ts_name, pos_key = 't', channel = None, smooth = False, **trial_matrix_kwargs):
         """
         add an attribute from an existing timeseries attribute
         :param ts_name:
@@ -986,7 +987,7 @@ class Session(SessionInfo, ABC):
             
             assert key in self.timeseries.keys(), "%s is not an existing timeseries" % key
             self.trial_matrices[key] = spatial_analyses.trial_matrix(self.timeseries[key].T,vr_data[pos_key]._values, trial_starts,
-                                                                     trial_ends, **trial_matrix_kwargs)
+                                                                     trial_ends, smooth = smooth, **trial_matrix_kwargs)
 
         if isinstance(ts_name, list) or isinstance(ts_name, tuple):
             for _ts in ts_name:

@@ -4,13 +4,14 @@ import numpy as np
 import scipy as sp
 
 from sklearn.impute import KNNImputer as knn_imp
+from scipy.ndimage import convolve1d
 
 #import utilities as u
 from . import utilities as u
 
 def trial_matrix(arr_in, pos_in, tstart_inds, tstop_inds, bin_size=10, min_pos = 0,
                  max_pos=450, speed=None, speed_thr=2, perm=False,
-                 mat_only=False, impute_nans = False, use_sum=False):
+                 mat_only=False, impute_nans = False, use_sum=False, smooth = False):
     """
 
     :param arr: timepoints x anything array to be put into trials x positions format
@@ -86,6 +87,30 @@ def trial_matrix(arr_in, pos_in, tstart_inds, tstop_inds, bin_size=10, min_pos =
             for cell in range(trial_mat.shape[2]):
                 _m = trial_mat[trial, ~nan_inds, cell]
                 trial_mat[trial,:,cell] = np.interp(bin_centers, _c, _m)
+
+    '''
+    Ella added smoothing here 
+    change to gaussian smoothing by 1 bin? 
+
+    something like this but without means 
+    ratemap = sp.ndimage.gaussian_filter1d(
+                    np.nanmean(trials_mat[trial_mask, :, :], axis=0), 1, axis=0
+                )
+    '''
+    
+    if smooth:
+        smoothing_kernel = np.array([0.25, 0.5, 0.25])
+        for trial in range(trial_mat.shape[0]):
+            for cell in range(trial_mat.shape[2]):
+                signal = trial_mat[trial, :, cell]
+                nan_mask = np.isnan(signal)
+                signal_filled = np.copy(signal)
+                signal_filled[nan_mask] = 0
+                weights = (~nan_mask).astype(float)
+                smoothed = convolve1d(signal_filled, smoothing_kernel, mode='nearest')
+                weight_sum = convolve1d(weights, smoothing_kernel, mode='nearest')
+                trial_mat[trial, :, cell] = smoothed / (weight_sum + 1e-6)
+                trial_mat[trial, nan_mask, cell] = np.nan 
 
     if mat_only:
         return np.squeeze(trial_mat)
@@ -168,6 +193,8 @@ def place_cells_calc(C, position, tstart_inds,
     # get by trial info
     C_trial_mat, occ_trial_mat, edges,centers = trial_matrix(C,position,tstart_inds,teleport_inds,speed = speed, **kwargs)
 
+    print("C_trial_mat shape: " ,C_trial_mat.shape)
+    print('non nans in C trial mat: ', np.sum(~np.isnan(C_trial_mat)))
     occ = occ_trial_mat.sum(axis=0) + 1E-3
     occ /= occ.sum()
     if use_tank_method:
