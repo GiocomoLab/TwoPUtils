@@ -307,6 +307,10 @@ class Session(SessionInfo, ABC):
 
         """
 
+        # tracking data 
+
+        self.tunnel_df = None
+        
         # vr data
         self.vr_data = None
         self.trial_start_inds = None
