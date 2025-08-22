@@ -339,7 +339,7 @@ class Session(SessionInfo, ABC):
 
         if self.vr_data is None or overwrite:
             # load sqlite file as pandas array
-            if "wheel" in self.vr_filename or "unrestrict_fam" in self.vr_filename:
+            if "wheel" in self.vr_filename: # or "unrestrict_fam" in self.vr_filename: not sure why add unrestricted_fam here? maybe some animals had some problem?
                 df = pp.load_sqlite(self.vr_filename,fix_teleports=False)
             else:
                 df = pp.load_sqlite(self.vr_filename,fix_teleports=True)
@@ -497,7 +497,7 @@ class Session(SessionInfo, ABC):
             else:
                 date_index = self.s2p_path.find(self.date) + len(self.date)
                 define_path = os.path.join(self.s2p_path[:date_index],'combined','suite2p')
-                print(define_path)
+                print(f"the define path is {define_path}")
                 self.s2p_ops = np.load(os.path.join(define_path, plane, 'ops.npy'), allow_pickle=True).all()
 
             if len(self.s2p_ops['data_path']) >1:
@@ -556,7 +556,8 @@ class Session(SessionInfo, ABC):
                     plane_dirs = glob(os.path.join(self.s2p_path, 'plane*'))
                 else:
                     plane_dirs = glob(os.path.join(define_path, 'plane*'))
-                print(plane_dirs)
+                
+                #print(plane_dirs)
 
                 ts_per_plane = {}
                 plane_start_ind = 0
@@ -565,9 +566,9 @@ class Session(SessionInfo, ABC):
                     ts_per_plane[i] = {}
                     
                     # 1) Get plane indices per cell
-                    print(plane_dir)
+                    #print(plane_dir)
                     iscell_i = np.load(os.path.join(plane_dir,"iscell.npy"),allow_pickle=True)
-                    print(f"this plane is shape {iscell_i.shape}")
+                    print(f"the plane {i} shape is {iscell_i.shape}")
                     # if we curated on combined, iscell per plane will not be updated!
                     # therefore we use a chunk of the combined iscell                
                     iscell_i = self.iscell[plane_start_ind:plane_start_ind+iscell_i.shape[0]]
@@ -594,15 +595,20 @@ class Session(SessionInfo, ABC):
                                 load_ts = load_ts[:,frames]
                             else:
                                 #print(print(self.s2p_ops['nframes_per_folder']) )
-                                print(self.s2p_ops['data_path'])
+                                print('path is', self.s2p_ops['data_path'][0])
                                 #print(self.scene)
                                 session_id = self.find_scene_index()
+                                print('session_id is', session_id)
                                 if session_id ==-1:
                                     # this is a temp fix, need to fix the way that I process the data
                                     h5_files = sorted(glob(os.path.join(self.s2p_ops['data_path'][0], '*.h5')))
+                                    if not h5_files:
+                                        #print('correct path is ', os.path.join(self.basedir,'../../combined'))
+                                        h5_files = sorted(glob(os.path.join(os.path.dirname(os.path.dirname(self.basedir)),'combined', '*.h5')))
                                     session_id = self.find_session_index(h5_files)
                                     print(h5_files)
-                                    print(session_id)
+                                    #print(session_id)
+                                    #print('scan_number is', self.scan_number)
                                 
                                 if session_id != -1:
                                     if session_id == 0:
@@ -637,8 +643,9 @@ class Session(SessionInfo, ABC):
                 print("Concatenating timeseries across planes...")
                 for ts in ts_to_pull.keys():
                     self.timeseries[ts] = np.concatenate([ts_per_plane[p][ts] for p in range(self.n_planes)], axis=0)
+                print(f" finished session {self.scene}")
 
-            # If single plane: haven't fix the multisess for signle plane, but should be very hard
+            # If single plane: haven't fix the multisess for signle plane, but shouldn't be very hard
             else:
                 self.plane_per_cell = np.zeros(self.iscell.shape[0],)
                 
@@ -665,8 +672,9 @@ class Session(SessionInfo, ABC):
 
     def find_session_index(self, h5_files): # This doesn't need to be here
         try:
+            print(f"the session name is {self.scene}")
             return next(i for i, path in enumerate(h5_files) 
-                    if ("%03d"%(self.scan_number)) in path)
+                    if (("%03d"%(self.scan_number)) in path) & (self.scene in path)) 
         except StopIteration:
             return -1        
 
