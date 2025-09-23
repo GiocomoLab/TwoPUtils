@@ -204,8 +204,8 @@ def place_cells_calc(C, position, tstart_inds,
     # SI = spatinfo_per_morph(C_trial_mat,occ_trial_mat)
 
     SI_perms = np.zeros([nperms,C.shape[1]])
-    if output_shuffle:
-        perm_trial_mat = np.zeros(np.hstack([[i for i in C_trial_mat.shape],[nperms]]))
+    # if output_shuffle:
+    #     perm_trial_mat = np.zeros(np.hstack([[i for i in C_trial_mat.shape],[nperms]]))
 
     for perm in range(nperms):
         if perm%100 == 0:
@@ -220,11 +220,11 @@ def place_cells_calc(C, position, tstart_inds,
 
         SI_perms[perm,:]=_SI_perm
         
-        if output_shuffle:
-            if len(perm_trial_mat.shape)==4:
-                perm_trial_mat[:,:,:,perm] = C_trial_mat
-            else:
-                perm_trial_mat[:,:,perm] = C_trial_mat
+        # if output_shuffle:
+        #     if len(perm_trial_mat.shape)==4:
+        #         perm_trial_mat[:,:,:,perm] = C_trial_mat
+        #     else:
+        #         perm_trial_mat[:,:,perm] = C_trial_mat
 
     p = np.ones([C.shape[1],])
     for cell in range(C.shape[1]):
@@ -232,6 +232,7 @@ def place_cells_calc(C, position, tstart_inds,
     masks = p<pthr
 
     if output_shuffle:
+        # return masks, SI, p, perm_trial_mat, SI_perms
         return masks, SI, p, perm_trial_mat, SI_perms
     else:
         return masks, SI, p

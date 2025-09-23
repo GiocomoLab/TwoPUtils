@@ -1,13 +1,15 @@
 ## UTF-8 encoding ##
 # :set fileencoding=utf8
 
-.ipynb_checkpoints/
+.ipynb_checkpoints/*
 */.ipynb_checkpoints/
 */__pycache__*
 TwoPUtils.egg-info/*
 .idea/*
-TwoPUtils/scanner_tools/__pycache__/__init__.cpython-38.pyc
-TwoPUtils/scanner_tools/__pycache__/bruker_utils.cpython-38.pyc
-TwoPUtils/scanner_tools/__pycache__/sbx_utils.cpython-38.pyc
-TwoPUtils/scanner_tools/__pycache__/thorlabs_utils.cpython-38.pyc
+TwoPUtils/scanner_tools/__pycache__/*
+TwoPUtils.egg-info/PKG-INFO
+TwoPUtils/scanner_tools/__pycache__/__init__.cpython-310.pyc
+TwoPUtils/scanner_tools/__pycache__/bruker_utils.cpython-310.pyc
+TwoPUtils/scanner_tools/__pycache__/sbx_utils.cpython-310.pyc
+TwoPUtils/scanner_tools/__pycache__/thorlabs_utils.cpython-310.pyc
 TwoPUtils.egg-info/PKG-INFO
