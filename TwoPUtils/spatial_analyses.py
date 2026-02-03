@@ -146,7 +146,8 @@ def spatial_info_tank(ts,frmap,occ,speed=None):
     '''
     
     arr = np.copy(ts)
-    arr[speed < 2, :] = np.nan
+    if speed is not None:
+        arr[speed < 2, :] = np.nan
     arr = arr - np.nanmin(arr)+.001
     
     f_i = frmap - np.amin(frmap)+.001  # just make all values non-negative
@@ -233,7 +234,7 @@ def place_cells_calc(C, position, tstart_inds,
 
     if output_shuffle:
         # return masks, SI, p, perm_trial_mat, SI_perms
-        return masks, SI, p, perm_trial_mat, SI_perms
+        return masks, SI, p, SI_perms
     else:
         return masks, SI, p
 

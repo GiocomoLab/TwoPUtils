@@ -229,7 +229,8 @@ class SessionInfo:
                                                     "%s_%03d_%03d.mat" % (self.scene, self.session, self.scan_number))
             if not os.path.exists(self.scanheader_file):
                 if self.verbose:
-                    warnings.warn("Could not find sbxmat file at %s" % self.scanheader_file)
+                    pass
+                    # warnings.warn("Could not find sbxmat file at %s" % self.scanheader_file)
 
 
             if self.scan_file is None:
@@ -238,7 +239,8 @@ class SessionInfo:
                                               "%s_%03d_%03d.sbx" % (self.scene, self.session, self.scan_number))
             if not os.path.exists(self.scan_file):
                 if self.verbose:
-                    warnings.warn("Could not find sbx file at %s" % self.scan_file)
+                    pass
+                    # warnings.warn("Could not find sbx file at %s" % self.scan_file)
 
 
         elif self.scanner == "ThorLabs":
