@@ -1,7 +1,7 @@
 import numpy as np
 import scipy as sp
 import suite2p as s2p
-import TwoPUtils as tpu
+import two_photon_utils as tpu
 import os
 
 import sys

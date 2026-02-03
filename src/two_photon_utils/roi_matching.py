@@ -16,14 +16,15 @@ class ROIAligner:
     each session already.
     """
 
-    def __init__(self, sess_list):
+    def __init__(self, sess_list, channel=None):
         """
 
 
-        :param ref_sess: TwoPUtils.sess.Session instance for the session that all other sessions will be aligned to
-        :param targ_sess: (list or tuple of) TwoPUtils.sess.Session instance(s) for the sessions that will be aligned
+        :param ref_sess: two_photon_utils.sess.Session instance for the session that all other sessions will be aligned to
+        :param targ_sess: (list or tuple of) two_photon_utils.sess.Session instance(s) for the sessions that will be aligned
         """
         self.sess_list = sess_list
+        self.channel = channel
         # roi x Ly x Lx matrix of ROI masks
         self.ref_roistack = None
 
@@ -42,11 +43,16 @@ class ROIAligner:
         """
         for ref_ind in range(len(self.sess_list)):
 
-            self.ref_roistack = make_roistack(self.sess_list[ref_ind].s2p_stats, self.sess_list[ref_ind].s2p_ops)
-            
+            if self.channel is not None:
+                self.ref_roistack = make_roistack(self.sess_list[ref_ind].s2p_stats[self.channel], self.sess_list[ref_ind].s2p_ops[self.channel])
+                self.reg_ops = self.sess_list[ref_ind].s2p_ops[self.channel]
+                self.align_mean_images(self.sess_list[ref_ind].s2p_ops[self.channel]['meanImg'], self.sess_list[ref_ind].s2p_ops[self.channel])
+            else:
+                self.ref_roistack = make_roistack(self.sess_list[ref_ind].s2p_stats, self.sess_list[ref_ind].s2p_ops)
+                self.reg_ops = self.sess_list[ref_ind].s2p_ops
+                self.align_mean_images(self.sess_list[ref_ind].s2p_ops['meanImg'], self.sess_list[ref_ind].s2p_ops)
             # align targ_sess mean images to ref_sess mean image
-            self.reg_ops = self.sess_list[ref_ind].s2p_ops
-            self.align_mean_images(self.sess_list[ref_ind].s2p_ops['meanImg'], self.sess_list[ref_ind].s2p_ops)
+            
             targ_inds = [i for i in range(len(self.sess_list)) if i not in [ref_ind]]
             self.match_inds[ref_ind] = {}
             for targ_ind in targ_inds:
@@ -62,11 +68,15 @@ class ROIAligner:
         :return:
         """
 
-        # get mean images
-        # self.frames = np.array([s.s2p_ops['meanImg'] for s in self.sess_list]).astype(np.float32)
-        self.frames = np.array([s.s2p_ops['meanImg'] for s in self.sess_list]).astype(np.float32)
-        print([s.s2p_ops['meanImg'].shape for s in self.sess_list])
 
+        # get mean images
+        if self.channel is not None:
+            for s in self.sess_list:
+                
+                print(s.s2p_ops[self.channel]['meanImg'].shape)
+            self.frames = np.stack([s.s2p_ops[self.channel]['meanImg'] for s in self.sess_list]).astype(np.float32)
+        else:
+            self.frames = np.stack([s.s2p_ops['meanImg'] for s in self.sess_list]).astype(np.float32)
         # align them
         self.frames, self.rigid_offsets, self.nonrigid_offsets = align_stack(
             ref_img, self.frames, reg_ops)
@@ -83,8 +93,12 @@ class ROIAligner:
 
         
         # make roi x Ly x Lx array of masks
-        targ_roistack = make_roistack(self.sess_list[index].s2p_stats,
-                                      self.sess_list[index].s2p_ops)
+        if self.channel is not None:
+            targ_roistack = make_roistack(self.sess_list[index].s2p_stats[self.channel],
+                                          self.sess_list[index].s2p_ops[self.channel])
+        else:
+            targ_roistack = make_roistack(self.sess_list[index].s2p_stats,
+                                          self.sess_list[index].s2p_ops)
 
         # apply alignment transform to roi masks
         self.align_roistack(targ_roistack, [self.rigid_offsets[0][index], self.rigid_offsets[1][index]],
@@ -266,9 +280,9 @@ def align_stack(ref_img, frames, ops):
         )
 
     if ops.get('nonrigid'):
-        if 'yblock' not in ops:
-            ops['yblock'], ops['xblock'], ops['nblocks'], ops['block_size'], ops[
-                'NRsm'] = nonrigid.make_blocks(Ly=ops['Ly'], Lx=ops['Lx'], block_size=ops['block_size'])
+        # if 'yblock' not in ops:
+        ops['yblock'], ops['xblock'], ops['nblocks'], ops['block_size'], ops[
+            'NRsm'] = nonrigid.make_blocks(Ly=ops['Ly'], Lx=ops['Lx'], block_size=ops['block_size'])
 
         try:
             maskMulNR, maskOffsetNR, cfRefImgNR = nonrigid.phasecorr_reference(
@@ -281,6 +295,7 @@ def align_stack(ref_img, frames, ops):
                 pad_fft=ops['pad_fft'],
             )
         except:
+            # print(ops['yblock'], ops['xblock'])
             maskMulNR, maskOffsetNR, cfRefImgNR = nonrigid.phasecorr_reference(
                 refImg0=ref_img,
                 maskSlope=ops['spatial_taper'] if ops['1Preg'] else 3 * ops['smooth_sigma'],
@@ -359,6 +374,7 @@ def make_roistack(stats, ops):
     """
 
     roistack = np.zeros([stats.shape[0], ops['Ly'], ops['Lx']]).astype(np.float32)
+    print('roistack shape', roistack.shape)
     for i, roi in enumerate(stats):
         roistack[i, roi['ypix'], roi['xpix']] = 1
     return roistack
