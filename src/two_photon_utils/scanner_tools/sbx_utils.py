@@ -1,5 +1,5 @@
 import os
-
+import pathlib
 import h5py
 import numpy as np
 import scipy.io as spio
@@ -54,13 +54,15 @@ def loadmat(filename, sbx_version=2):
         info['fov_repeats']=1
     # Determine number of frames in whole file
 
-    info['orig_max_idx'] = int(
-        os.path.getsize(filename[:-4] + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1) 
+    if pathlib.Path(filename[:-4] + '.sbx').is_file():
+        info['orig_max_idx'] = int(
+            os.path.getsize(filename[:-4] + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1) 
 
 
-    info['max_idx'] = int(
-        os.path.getsize(filename[:-4] + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1) * int(info['fov_repeats'])
-
+        info['max_idx'] = int(
+            os.path.getsize(filename[:-4] + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1) * int(info['fov_repeats'])
+    else:
+        info['orig_max_idx'], info['max_idx'] = None, None
     
     info['frame_rate'] = info['resfreq'] / info['config']['lines'] * (2 - info['scanmode'])*info['fov_repeats']
     if 'otwave' in info.keys():
