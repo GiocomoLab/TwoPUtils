@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "two-photon-utils"
+name = "two_photon_utils"
 version = "0.0.1"
 description = "General purpose two photon processing"
 authors = [
