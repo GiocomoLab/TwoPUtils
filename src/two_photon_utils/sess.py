@@ -89,29 +89,32 @@ class SessionInfo:
         self.n_channels = 1  # int, number of functional channels
         self.prompt_for_keys = False  # bool, whether or not to run through prompts for minimal keys
         self.verbose = False
+        self.skip_all_file_checks = True
 
         self.__dict__.update(kwargs)  # update keys based on inputs
         # if want to receive prompts for minimal keys
-        if self.prompt_for_keys:
-            self._check_minimal_keys()
-        else:
-            # check that provided keys are the right type
-            if self.verbose:
-                warnings.warn("skipping checking keys, remaining initialization not guaranteed to work")
+        if not self.skip_all_file_checks:
+            if self.prompt_for_keys:
+                self._check_minimal_keys()
+            else:
+                # check that provided keys are the right type
+                if self.verbose:
+                    warnings.warn("skipping checking keys, remaining initialization not guaranteed to work")
 
-        # check for VR data
-        if self.vr_filename is None:
-            self._check_for_VR_data()
+            # check for VR data
+            if self.vr_filename is None:
+                self._check_for_VR_data()
 
-        if not self.VR_only:
-            # check for raw 2P data
-            self._check_for_2P_data()
+            if not self.VR_only:
+                
+                # check for raw 2P data
+                self._check_for_2P_data()
 
-            # check for suite 2P data
-            self._check_for_suite2P_data()
+                # check for suite 2P data
+                self._check_for_suite2P_data()
 
-            # check for other sessions that 2P data is aligned to
-            # self._check_for_coaligned_suite2p_sessions()
+                # check for other sessions that 2P data is aligned to
+                # self._check_for_coaligned_suite2p_sessions()
 
         # print available fields
         # self.print_session_info()
