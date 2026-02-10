@@ -496,7 +496,7 @@ class Session(SessionInfo, ABC):
                     vr_data = self.vr_data[chan]
                     vr_shape = vr_data.shape[0]
                     
-                    if (vr_shape - v.shape[1] == 1) and trimmed_flags[chan]:
+                    if (vr_shape - v.shape[1] == 1) and not trimmed_flags[chan]:
                         print('Odd number of VR frames, trimming')
                         vr_data.drop(vr_data.tail(1).index,inplace=True) # drop last n rows
                         trimmed_flags[chan] = True
