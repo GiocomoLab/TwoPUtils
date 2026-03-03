@@ -326,9 +326,9 @@ class Session(SessionInfo, ABC):
         # inheritance
         super(Session, self).__init__(**kwargs)
 
-    def load_scan_info(self):
+    def load_scan_info(self, sbx_version=2):
         if self.scanner == "NLW":
-            self.scan_info = sbx_utils.loadmat(self.scanheader_file)
+            self.scan_info = sbx_utils.loadmat(self.scanheader_file, sbx_version=sbx_version)
 
     def align_VR_to_2P(self, overwrite=True, run_ttl_check = False):
 
