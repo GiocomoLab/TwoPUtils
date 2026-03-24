@@ -6,8 +6,10 @@ import numpy as np
 import scipy as sp
 from matplotlib import pyplot as plt
 
-from suite2p.registration import bidiphase, rigid, nonrigid
-from suite2p.registration import utils as reg_utils
+#from suite2p.registration import bidiphase, rigid, nonrigid
+#from suite2p.registration import utils as reg_utils        
+from .registration import bidiphase, rigid, nonrigid,default_ops
+from .registration import utils as reg_utils      
 
 
 class ROIAligner:
@@ -271,7 +273,10 @@ def align_stack(ref_img, frames, ops):
             rigidOffsets: [y_shifts, x_shifts] from rigid motion correction
             nonrigidOffsets: [y_shifts, x_shifts] from nonrigid motion correction
     """
-
+    ops.setdefault('1Preg',False)
+    ops.setdefault('smooth_sigma',1.15)
+    import pdb
+    #pdb.set_trace()
     # clip reference
     rmin, rmax = np.percentile(ref_img, 1), np.percentile(ref_img, 99)
     ref_img = np.clip(ref_img, rmin, rmax).astype(np.float32)

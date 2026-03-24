@@ -9,6 +9,9 @@ import numpy as np
 from .scanner_tools import sbx_utils
 from . import preprocessing as pp
 from . import spatial_analyses
+from .registration import default_ops
+
+DEFAULT_OPS = default_ops.default_ops();
 
 
 def save_session(obj, output_basedir):
@@ -365,7 +368,12 @@ class Session(SessionInfo, ABC):
         else:
             print("VR data already set or overwrite=False")
     def _load_ops_and_co(self,folder):
-        s2p_ops = np.load(os.path.join(folder,'ops.npy'), allow_pickle=True).all()
+        #s2p_ops = np.load(os.path.join(folder,'ops.npy'), allow_pickle=True).all()
+        data = np.load(os.path.join(folder,'ops.npy'), allow_pickle=True)
+        result = data.all()
+        if not isinstance(result, dict):
+            result = data.item()
+        s2p_ops = DEFAULT_OPS | result
         try:
             s2p_stats = np.load(os.path.join(folder, 'stats.npy'), allow_pickle=True)
         except:
@@ -393,7 +401,8 @@ class Session(SessionInfo, ABC):
                 self.s2p_stats.append(stats)
                 self.iscell.append(iscell)
         else:
-            self.s2p_ops = np.load(os.path.join(self.s2p_path, 'plane0', 'ops.npy'), allow_pickle=True).all()
+            loaded = np.load(os.path.join(self.s2p_path, 'plane0', 'ops.npy'), allow_pickle=True).all()
+            self.s2p_ops = DEFAULT_OPS | loaded
 
             if frames is None:
                 frames = slice(0, self.s2p_ops['nframes'])
