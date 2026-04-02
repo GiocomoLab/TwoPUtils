@@ -410,7 +410,7 @@ class Session(SessionInfo, ABC):
         if self.n_channels>1:
             self.s2p_ops={f'channel_{i}': np.load(os.path.join(self.s2p_path[i], plane, 'ops.npy'), allow_pickle=True).all() for i in range(self.n_channels)}
         else:
-            self.s2p_ops = np.load(os.path.join(self.s2p_path, plane, 'ops.npy'), allow_pickle=True).all()
+            self.s2p_ops = np.load(os.path.join(self.s2p_path, plane, 'ops.npy'), allow_pickle=True).item()
 
         
        
