@@ -253,8 +253,8 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False, n_planes = 1, m
     ca_df.loc[~mask, cumsum_interp_cols] = 0.
 
     # fill na here
-    ca_df.loc[np.isnan(ca_df['teleport']._values), 'teleport'] = 0
-    ca_df.loc[np.isnan(ca_df['tstart']._values), 'tstart'] = 0
+    ca_df.loc[ca_df['teleport'].isna(), 'teleport'] = 0
+    ca_df.loc[ca_df['tstart'].isna(), 'tstart'] = 0
     # if first tstart gets clipped
     if ca_df['teleport'].sum(axis=0) != ca_df['tstart'].sum(axis=0):
         warnings.warn("Number of teleports and trial starts don't match")
