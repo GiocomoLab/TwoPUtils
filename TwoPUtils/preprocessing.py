@@ -232,7 +232,8 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False, n_planes = 1, m
 
     f_nearest = sp.interpolate.interp1d(ttl_times, vr_dataframe[near_interp_cols]._values, axis=0, kind='nearest')
     ca_df.loc[mask, near_interp_cols] = f_nearest(ca_time[mask])
-    ca_df.fillna(method='ffill', inplace=True)
+    ca_df.ffill(inplace=True)
+    # ca_df.fillna(method='ffill', inplace=True)
     ca_df.loc[~mask, near_interp_cols] = -1.
 
     # integrate, interpolate and then take difference, to make sure data is not lost
