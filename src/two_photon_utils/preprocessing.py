@@ -267,8 +267,8 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False, n_planes = 1, m
             ca_df['teleport'].iloc[-1]=1
     
     # smooth instantaneous speed
-    cum_dz = sp.ndimage.filters.gaussian_filter1d(np.cumsum(ca_df['dz']._values), 5)
-    ca_df['dz'] = np.ediff1d(cum_dz, to_end=0)
+    # cum_dz = sp.ndimage.filters.gaussian_filter1d(np.cumsum(ca_df['dz']._values), 5)
+    # ca_df['dz'] = np.ediff1d(cum_dz, to_end=0)
 
     # ca_df['speed'].interpolate(method='linear', inplace=True)
     ca_df['speed'] = np.array(np.divide(ca_df['dz'], np.ediff1d(ca_df['time'], to_begin=1. / fr)))
