@@ -279,7 +279,7 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False, n_planes = 1, m
     # For a more conservative estimate of lick rate when we do spatial binning downstream, we will set
     # lick count per imaging frame to 1 if ca_df['lick']>=1. 
     ca_df['lick rate'] = np.array(np.divide(ca_df['lick'], np.ediff1d(ca_df['time'], to_begin=1. / fr)))
-    ca_df['lick rate'] = sp.ndimage.filters.gaussian_filter1d(ca_df['lick rate']._values, 5)
+    ca_df['lick rate'] = sp.ndimage.filters.gaussian_filter1d(ca_df['lick rate']._values.astype(float), 5)
 
     # replace nans with 0s
     ca_df.fillna(value=0, inplace=True)
