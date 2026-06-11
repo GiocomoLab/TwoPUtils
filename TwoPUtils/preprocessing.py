@@ -387,7 +387,7 @@ def vr_align_to_2P(vr_dataframe, scan_info, run_ttl_check=False, n_planes = 1, m
     # Below, use interpolation to "downsample" the behavior data to match the times of the imaging data
 
     # linear interpolation of position and catmull rom spline "time" parameter
-    lin_interp_cols = column_filter(('pos','posx','posy','t')) #'posx','posy',
+    lin_interp_cols = column_filter(('pos','posx','posy','t', 'ball_x', 'ball_y', 'ball_z')) #'posx','posy',
 
     f_mean = sp.interpolate.interp1d(ttl_times, vr_dataframe[lin_interp_cols]._values, axis=0, kind='slinear')
     ca_df.loc[mask, lin_interp_cols] = f_mean(ca_time[mask])
